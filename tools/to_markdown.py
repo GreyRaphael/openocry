@@ -109,17 +109,17 @@ class MarkdownConverter:
 
         # Define replacements for special formulas
         self.replace_dict = {
-            '\\bm': '\mathbf ',
-            '\eqno': '\quad ',
-            '\quad': '\quad ',
-            '\leq': '\leq ',
-            '\pm': '\pm ',
-            '\\varmathbb': '\mathbb ',
-            '\in fty': '\infty',
-            '\mu': '\mu ',
-            '\cdot': '\cdot ',
-            '\langle': '\langle ',
-            '\pm': '\pm '
+            r'\bm': r'\mathbf ',
+            r'\eqno': r'\quad ',
+            r'\quad': r'\quad ',
+            r'\leq': r'\leq ',
+            r'\pm': r'\pm ',
+            r'\varmathbb': r'\mathbb ',
+            r'\in fty': r'\infty',
+            r'\mu': r'\mu ',
+            r'\cdot': r'\cdot ',
+            r'\langle': r'\langle ',
+            r'\pm': r'\pm '
         }
         # self.bigpattern = pattern = r"\\(big|Big|bigg|Bigg)\{(\\?[()\[\]{}]|\\langle|\\rangle)|\|\}"
 
@@ -205,7 +205,7 @@ class MarkdownConverter:
         """
         try:
             text = text.replace(r'\upmu',
-                                r'\mu').replace('\(', '$').replace('\)', '$')
+                                r'\mu').replace(r'\(', '$').replace(r'\)', '$')
             for key, value in self.replace_dict.items():
                 text = text.replace(key, value)
             return text
@@ -323,9 +323,9 @@ class MarkdownConverter:
                                    '</th>',
                                    table_content,
                                    flags=re.IGNORECASE)
-            table_content = table_content.replace('\(', '$').replace('\)', '$')
-            table_content = table_content.replace('\[',
-                                                  '$$').replace('\]', '$$')
+            table_content = table_content.replace(r'\(', '$').replace(r'\)', '$')
+            table_content = table_content.replace(r'\[',
+                                                  '$$').replace(r'\]', '$$')
             # markdown_table = re.sub(r'>\s*\n+\s*',
             #                         '>',
             #                         table_content,
@@ -348,18 +348,18 @@ class MarkdownConverter:
             result = re.sub(r'<\|unk\|>', '', result)
             result = re.sub(r'\uffff', '', result)
             result = re.sub(r'_{4,}', '___', result)
-            result = result.replace('\]\n*\[', '\\\\')
-            result = result.replace('\n\n\[', '')
-            result = result.replace('\]\n\n', '')
-            result = result.replace('\[\n', '')
-            result = result.replace('\n\]', '')
-            result = result.replace('\]', '')
-            result = result.replace('\[', '')
-            result = result.replace('\( ', '')
-            result = result.replace(' \)', '')
-            result = result.replace('\(', '')
-            text = result.replace('\)', '')
-            text = text.strip('$').rstrip('\ ').replace(r'\upmu', r'\mu')
+            result = result.replace('\\]\n*\\[', '\\\\')
+            result = result.replace('\n\n\\[', '')
+            result = result.replace('\\]\n\n', '')
+            result = result.replace('\\[\n', '')
+            result = result.replace('\n\\]', '')
+            result = result.replace(r'\]', '')
+            result = result.replace(r'\[', '')
+            result = result.replace(r'\( ', '')
+            result = result.replace(r' \)', '')
+            result = result.replace(r'\(', '')
+            text = result.replace(r'\)', '')
+            text = text.strip('$').rstrip(r'\ ').replace(r'\upmu', r'\mu')
             for key, value in self.replace_dict.items():
                 text = text.replace(key, value)
             processed_text = '$$' + text + '$$'
