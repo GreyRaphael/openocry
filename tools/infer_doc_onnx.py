@@ -695,32 +695,28 @@ class OpenDocONNX:
         # Initialize result list with placeholders
         vl_rec_results = [''] * num_blocks
 
-        # Process blocks in batches of num_workers
-        for batch_start in range(0, num_blocks, num_workers):
-            batch_end = min(batch_start + num_workers, num_blocks)
-            batch_size = batch_end - batch_start
-            logger.info(f'  Processing batch [{batch_start + 1}-{batch_end}] / {num_blocks}')
+        # Process all blocks using a single ThreadPoolExecutor to prevent thread creation overhead
+        # and eliminate the straggler synchronization barrier.
+        with ThreadPoolExecutor(max_workers=num_workers) as executor:
+            futures = {}
+            for i in range(num_blocks):
+                future = executor.submit(
+                    self._recognize_single_block,
+                    block_imgs[i],
+                    block_labels[i],
+                    i,
+                    max_length,
+                )
+                futures[future] = i
 
-            with ThreadPoolExecutor(max_workers=batch_size) as executor:
-                futures = {}
-                for i in range(batch_start, batch_end):
-                    future = executor.submit(
-                        self._recognize_single_block,
-                        block_imgs[i],
-                        block_labels[i],
-                        i,
-                        max_length,
-                    )
-                    futures[future] = i
-
-                for future in as_completed(futures):
-                    try:
-                        block_index, text = future.result()
-                        vl_rec_results[block_index] = text
-                    except Exception as e:
-                        block_index = futures[future]
-                        logger.error(f'  Parallel VLM recognition failed for block {block_index}: {e}')
-                        vl_rec_results[block_index] = ''
+            for future in as_completed(futures):
+                try:
+                    block_index, text = future.result()
+                    vl_rec_results[block_index] = text
+                except Exception as e:
+                    block_index = futures[future]
+                    logger.error(f'  Parallel VLM recognition failed for block {block_index}: {e}')
+                    vl_rec_results[block_index] = ''
 
         return vl_rec_results
 
