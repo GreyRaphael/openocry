@@ -204,7 +204,9 @@ class LayoutDetectorONNX:
                  model_path: str,
                  use_gpu: Optional[bool] = None,
                  threshold: float = 0.5,
-                 auto_download: bool = True):
+                 auto_download: bool = True,
+                 intra_op_num_threads: int = 0,
+                 inter_op_num_threads: int = 0):
         """
         初始化ONNX版面检测模型
 
@@ -226,6 +228,10 @@ class LayoutDetectorONNX:
         # 创建ONNX Runtime会话
         sess_options = ort.SessionOptions()
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        if intra_op_num_threads > 0:
+            sess_options.intra_op_num_threads = intra_op_num_threads
+        if inter_op_num_threads > 0:
+            sess_options.inter_op_num_threads = inter_op_num_threads
         self.session = ort.InferenceSession(model_path,
                                             sess_options,
                                             providers=providers)
@@ -537,6 +543,8 @@ class OpenDocONNX:
         use_chart_recognition: bool = True,
         auto_download: bool = True,
         max_parallel_blocks: int = 4,
+        intra_op_num_threads: Optional[int] = None,
+        inter_op_num_threads: Optional[int] = None,
     ):
         """
         初始化OpenDoc ONNX Pipeline
@@ -556,6 +564,17 @@ class OpenDocONNX:
         self.use_layout_detection = use_layout_detection
         self.use_chart_recognition = use_chart_recognition
         self.max_parallel_blocks = max(1, max_parallel_blocks)
+
+        # Auto-configure thread execution options under parallel execution to prevent over-subscription
+        if intra_op_num_threads is None:
+            self.intra_op_num_threads = 2 if self.max_parallel_blocks > 1 else 0
+        else:
+            self.intra_op_num_threads = intra_op_num_threads
+
+        if inter_op_num_threads is None:
+            self.inter_op_num_threads = 1 if self.max_parallel_blocks > 1 else 0
+        else:
+            self.inter_op_num_threads = inter_op_num_threads
 
         # Set default paths if not provided
         if layout_model_path is None:
@@ -599,7 +618,13 @@ class OpenDocONNX:
         # 初始化版面检测模型
         if use_layout_detection:
             self.layout_detector = LayoutDetectorONNX(
-                layout_model_path, use_gpu=use_gpu, threshold=layout_threshold, auto_download=auto_download)
+                layout_model_path,
+                use_gpu=use_gpu,
+                threshold=layout_threshold,
+                auto_download=auto_download,
+                intra_op_num_threads=self.intra_op_num_threads,
+                inter_op_num_threads=self.inter_op_num_threads,
+            )
         else:
             self.layout_detector = None
 
@@ -610,7 +635,10 @@ class OpenDocONNX:
             decoder_path=unirec_decoder_path,
             mapping_path=tokenizer_mapping_path,
             use_gpu=use_gpu,
-            auto_download=auto_download)
+            auto_download=auto_download,
+            intra_op_num_threads=self.intra_op_num_threads,
+            inter_op_num_threads=self.inter_op_num_threads,
+        )
 
     def _recognize_single_block(
         self,

@@ -367,6 +367,8 @@ class UniRecONNX:
         mapping_path=None,
         use_gpu=None,
         auto_download=True,
+        intra_op_num_threads=0,
+        inter_op_num_threads=0,
     ):
         """Initialize ONNX inference sessions.
 
@@ -376,6 +378,8 @@ class UniRecONNX:
             mapping_path: Path to tokenizer mapping JSON. If None, use default cache directory.
             use_gpu: Whether to use GPU. If None, auto-detect. If True, force GPU. If False, force CPU.
             auto_download: If True, automatically download missing model files
+            intra_op_num_threads: Number of threads to parallelize the execution of a single operator.
+            inter_op_num_threads: Number of threads to parallelize the execution of multiple operators.
         """
         # Set default paths if not provided
         if encoder_path is None or decoder_path is None or mapping_path is None:
@@ -402,6 +406,10 @@ class UniRecONNX:
         # Create ONNX runtime sessions
         sess_options = ort.SessionOptions()
         sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        if intra_op_num_threads > 0:
+            sess_options.intra_op_num_threads = intra_op_num_threads
+        if inter_op_num_threads > 0:
+            sess_options.inter_op_num_threads = inter_op_num_threads
         self.decoder_session = ort.InferenceSession(decoder_path, sess_options, providers=providers)
         self.encoder_session = ort.InferenceSession(encoder_path, sess_options, providers=providers)
 
@@ -514,14 +522,14 @@ class UniRecONNX:
         decoder_inputs = {
             'input_ids': input_ids,
             'position_ids': position_ids,
-            'cross_k': cross_k.astype(np.float32),
-            'cross_v': cross_v.astype(np.float32),
+            'cross_k': cross_k,
+            'cross_v': cross_v,
         }
 
         # Add past_key_values
         for i, (past_key, past_value) in enumerate(past_key_values):
-            decoder_inputs[f'past_key_{i}'] = past_key.astype(np.float32)
-            decoder_inputs[f'past_value_{i}'] = past_value.astype(np.float32)
+            decoder_inputs[f'past_key_{i}'] = past_key
+            decoder_inputs[f'past_value_{i}'] = past_value
 
         # Run decoder
         decoder_outputs = self.decoder_session.run(None, decoder_inputs)

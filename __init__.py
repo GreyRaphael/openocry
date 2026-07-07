@@ -4,9 +4,40 @@ from __future__ import print_function
 import os
 import sys
 
+import inspect
+import importlib.util
+
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(__dir__)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, '..')))
+
+class OpenOCRImportRedirector:
+    """Redirects absolute imports of internal folders (tools, opendet, openrec)
+    to openocr package namespace to avoid polluting the Python global namespace.
+    Only intercepts imports initiated within the openocr package.
+    """
+    def find_spec(self, fullname, path, target=None):
+        top_level = fullname.split('.')[0]
+        if top_level in {'tools', 'opendet', 'openrec', 'configs'}:
+            # Only redirect if openocr package itself is available
+            try:
+                if importlib.util.find_spec("openocr") is None:
+                    return None
+            except Exception:
+                return None
+
+            frame = inspect.currentframe()
+            try:
+                while frame:
+                    file_path = frame.f_globals.get('__file__', '')
+                    if file_path and ('openocr' in file_path.lower() or 'openocry' in file_path.lower()):
+                        return importlib.util.find_spec(f"openocr.{fullname}")
+                    frame = frame.f_back
+            finally:
+                del frame
+        return None
+
+# Register import redirector
+sys.meta_path.insert(0, OpenOCRImportRedirector())
 
 # from .tools.infer_e2e import OpenOCRE2E, OpenDetector, OpenRecognizer
 # from .tools.infer_unirec_onnx import UniRecONNX
