@@ -184,7 +184,13 @@ def _get_image_name_and_dir(result: Dict, output_path: str):
     """根据图片名创建子目录并返回(img_name, img_dir)"""
     if 'pdf_page' in result:
         # PDF page: output to output_path/page{N}/
-        img_name = f'page{result["pdf_page"]}'
+        page_num = result['pdf_page']
+        total_pages = result.get('pdf_total_pages', 0)
+        if total_pages > 9:
+            width = len(str(total_pages))
+            img_name = f'page{page_num:0{width}d}'
+        else:
+            img_name = f'page{page_num}'
         img_dir = os.path.join(output_path, img_name)
     else:
         # Single image: output directly to output_path/
@@ -839,6 +845,7 @@ class OpenDocONNX:
                         layout_threshold=layout_threshold,
                         max_length=max_length,
                         merge_layout_blocks=merge_layout_blocks,
+                        total_pages=total_pages,
                     )
                     results.append(page_result)
                     
@@ -1081,6 +1088,7 @@ class OpenDocONNX:
         layout_threshold: Optional[float] = None,
         max_length: int = 2048,
         merge_layout_blocks: bool = True,
+        total_pages: Optional[int] = None,
     ) -> Dict:
         """Run inference on a single BGR numpy image (used for PDF pages).
 
@@ -1113,6 +1121,8 @@ class OpenDocONNX:
             pdf_name = os.path.basename(original_path)
             result['input_path'] = f'{original_path}'
             result['pdf_page'] = page_index + 1
+            if total_pages is not None:
+                result['pdf_total_pages'] = total_pages
             result['pdf_source'] = pdf_name
             # Store the page image for save_to_markdown and save_visualization
             result['_page_image'] = img_numpy.copy()
