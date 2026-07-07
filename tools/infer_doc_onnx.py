@@ -779,23 +779,44 @@ class OpenDocONNX:
         if image_path is not None and img_path is None:
             img_path = image_path
 
-        # Handle PDF input: convert to images and process each page
+        # Handle PDF input: convert to images and process each page dynamically (page-by-page) to save memory
         if img_path is not None and str(img_path).lower().endswith('.pdf'):
             logger.info(f'Processing PDF file: {img_path}')
-            pdf_images = self._pdf_to_images(img_path)
-            logger.info(f'Found {len(pdf_images)} pages in PDF')
-            results = []
-            for page_idx, page_img in enumerate(pdf_images):
-                logger.info(f'\n--- Processing page {page_idx + 1}/{len(pdf_images)} ---')
-                page_result = self._infer_single_image(
-                    img_numpy=page_img,
-                    original_path=img_path,
-                    page_index=page_idx,
-                    layout_threshold=layout_threshold,
-                    max_length=max_length,
-                    merge_layout_blocks=merge_layout_blocks,
+            try:
+                import fitz
+            except ImportError:
+                raise ImportError(
+                    'PyMuPDF is required for PDF support. '
+                    'Install with: pip install PyMuPDF'
                 )
-                results.append(page_result)
+            results = []
+            with fitz.open(img_path) as pdf:
+                total_pages = pdf.page_count
+                logger.info(f'Found {total_pages} pages in PDF')
+                for page_idx in range(total_pages):
+                    logger.info(f'\n--- Processing page {page_idx + 1}/{total_pages} ---')
+                    page = pdf[page_idx]
+                    mat = fitz.Matrix(2, 2)
+                    pm = page.get_pixmap(matrix=mat, alpha=False)
+                    if pm.width > 2000 or pm.height > 2000:
+                        pm = page.get_pixmap(matrix=fitz.Matrix(1, 1), alpha=False)
+                    img = Image.frombytes('RGB', [pm.width, pm.height], pm.samples)
+                    page_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                    
+                    page_result = self._infer_single_image(
+                        img_numpy=page_img,
+                        original_path=img_path,
+                        page_index=page_idx,
+                        layout_threshold=layout_threshold,
+                        max_length=max_length,
+                        merge_layout_blocks=merge_layout_blocks,
+                    )
+                    results.append(page_result)
+                    
+                    # Release memory reference immediately
+                    del page_img
+                    del pm
+                    del img
             return results
 
         # Load image from path or numpy array

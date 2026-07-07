@@ -594,22 +594,41 @@ class UniRecONNX:
             Tuple of (generated_text, generated_ids) for single image input.
             List of tuples [(generated_text, generated_ids), ...] for PDF input (one per page).
         """
-        # Handle PDF input: convert to images and process each page
+        # Handle PDF input: convert to images and process each page dynamically (page-by-page) to save memory
         if img_path is not None and str(img_path).lower().endswith('.pdf'):
             print(f'Processing PDF file: {img_path}')
-            pdf_images = self._pdf_to_images(img_path)
-            print(f'Found {len(pdf_images)} pages in PDF')
-            results = []
-            for page_idx, page_image in enumerate(pdf_images):
-                print(f'\n--- Processing page {page_idx + 1}/{len(pdf_images)} ---')
-                result = self._infer_single_image(
-                    image=page_image,
-                    max_length=max_length,
-                    bos_token_id=bos_token_id,
-                    eos_token_id=eos_token_id,
-                    pad_token_id=pad_token_id,
+            try:
+                import fitz
+            except ImportError:
+                raise ImportError(
+                    'PyMuPDF is required for PDF support. '
+                    'Install with: pip install PyMuPDF'
                 )
-                results.append(result)
+            results = []
+            with fitz.open(img_path) as pdf:
+                total_pages = pdf.page_count
+                print(f'Found {total_pages} pages in PDF')
+                for page_idx in range(total_pages):
+                    print(f'\n--- Processing page {page_idx + 1}/{total_pages} ---')
+                    page = pdf[page_idx]
+                    mat = fitz.Matrix(2, 2)
+                    pm = page.get_pixmap(matrix=mat, alpha=False)
+                    if pm.width > 2000 or pm.height > 2000:
+                        pm = page.get_pixmap(matrix=fitz.Matrix(1, 1), alpha=False)
+                    page_image = Image.frombytes('RGB', [pm.width, pm.height], pm.samples)
+                    
+                    result = self._infer_single_image(
+                        image=page_image,
+                        max_length=max_length,
+                        bos_token_id=bos_token_id,
+                        eos_token_id=eos_token_id,
+                        pad_token_id=pad_token_id,
+                    )
+                    results.append(result)
+                    
+                    # Release memory reference immediately
+                    del page_image
+                    del pm
             return results
 
         # Load image from path, numpy array, or use provided PIL image
