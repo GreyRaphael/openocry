@@ -44,7 +44,7 @@ sys.meta_path.insert(0, OpenOCRImportRedirector())
 # from .tools.infer_doc_onnx import OpenDocONNX
 from .openocr import OpenOCR, main
 
-__version__ = '0.1.7'
+__version__ = '0.1.8'
 
 # Lazy import for demo interfaces to avoid initialization on import
 def launch_openocr_demo(*args, **kwargs):
