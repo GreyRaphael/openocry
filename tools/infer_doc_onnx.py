@@ -41,6 +41,47 @@ root_dir = Path(__file__).resolve().parent
 IMAGE_LABELS = ['image', 'header_image', 'footer_image', 'seal']
 
 
+class LazyResultList(list):
+    """A list subclass that yields items lazily from a generator when iterated over.
+    This enables save_to_markdown to write PDF pages to disk page-by-page as they are processed.
+    """
+    def __init__(self, generator):
+        super().__init__()
+        self._generator = generator
+        self._results = []
+
+    def __iter__(self):
+        # Yield already generated results first
+        for item in self._results:
+            yield item
+        # Generate and yield new results
+        for item in self._generator:
+            self._results.append(item)
+            yield item
+
+    def __len__(self):
+        self._consume_all()
+        return len(self._results)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            self._consume_all()
+            return self._results[index]
+        
+        while index >= len(self._results):
+            try:
+                next_item = next(self._generator)
+                self._results.append(next_item)
+            except StopIteration:
+                break
+        return self._results[index]
+
+    def _consume_all(self):
+        for item in self._generator:
+            self._results.append(item)
+
+
+
 def download_layout_model(model_dir=None):
     """Download layout detection ONNX model from ModelScope or HuggingFace.
 
@@ -824,36 +865,39 @@ class OpenDocONNX:
                     'PyMuPDF is required for PDF support. '
                     'Install with: pip install PyMuPDF'
                 )
-            results = []
-            with fitz.open(img_path) as pdf:
-                total_pages = pdf.page_count
-                logger.info(f'Found {total_pages} pages in PDF')
-                for page_idx in range(total_pages):
-                    logger.info(f'\n--- Processing page {page_idx + 1}/{total_pages} ---')
-                    page = pdf[page_idx]
-                    mat = fitz.Matrix(2, 2)
-                    pm = page.get_pixmap(matrix=mat, alpha=False)
-                    if pm.width > 2000 or pm.height > 2000:
-                        pm = page.get_pixmap(matrix=fitz.Matrix(1, 1), alpha=False)
-                    img = Image.frombytes('RGB', [pm.width, pm.height], pm.samples)
-                    page_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-                    
-                    page_result = self._infer_single_image(
-                        img_numpy=page_img,
-                        original_path=img_path,
-                        page_index=page_idx,
-                        layout_threshold=layout_threshold,
-                        max_length=max_length,
-                        merge_layout_blocks=merge_layout_blocks,
-                        total_pages=total_pages,
-                    )
-                    results.append(page_result)
-                    
-                    # Release memory reference immediately
-                    del page_img
-                    del pm
-                    del img
-            return results
+            
+            def page_generator():
+                with fitz.open(img_path) as pdf:
+                    total_pages = pdf.page_count
+                    logger.info(f'Found {total_pages} pages in PDF')
+                    for page_idx in range(total_pages):
+                        logger.info(f'\n--- Processing page {page_idx + 1}/{total_pages} ---')
+                        page = pdf[page_idx]
+                        mat = fitz.Matrix(2, 2)
+                        pm = page.get_pixmap(matrix=mat, alpha=False)
+                        if pm.width > 2000 or pm.height > 2000:
+                            pm = page.get_pixmap(matrix=fitz.Matrix(1, 1), alpha=False)
+                        img = Image.frombytes('RGB', [pm.width, pm.height], pm.samples)
+                        page_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                        
+                        page_result = self._infer_single_image(
+                            img_numpy=page_img,
+                            original_path=img_path,
+                            page_index=page_idx,
+                            layout_threshold=layout_threshold,
+                            max_length=max_length,
+                            merge_layout_blocks=merge_layout_blocks,
+                            total_pages=total_pages,
+                        )
+                        
+                        # Release memory reference immediately
+                        del page_img
+                        del pm
+                        del img
+                        
+                        yield page_result
+
+            return LazyResultList(page_generator())
 
         # Load image from path or numpy array
         is_temp_file = False

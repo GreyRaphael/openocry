@@ -39,7 +39,7 @@ builtins.__import__ = _openocr_custom_import
 # from .tools.infer_doc_onnx import OpenDocONNX
 from .openocr import OpenOCR, main
 
-__version__ = '0.1.12'
+__version__ = '0.1.13'
 
 # Lazy import for demo interfaces to avoid initialization on import
 def launch_openocr_demo(*args, **kwargs):
