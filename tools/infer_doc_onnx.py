@@ -182,17 +182,18 @@ def check_and_download_layout_model(model_path, auto_download=True):
 
 def _get_image_name_and_dir(result: Dict, output_path: str):
     """根据图片名创建子目录并返回(img_name, img_dir)"""
-    img_name = os.path.basename(result['input_path'])
-    if '.' in img_name:
-        img_name = img_name.rsplit('.', 1)[0]
-
-    # For PDF pages, append page number to avoid overwriting
     if 'pdf_page' in result:
-        img_name = f'{img_name}_page{result["pdf_page"]}'
+        # PDF page: output to output_path/page{N}/
+        img_name = f'page{result["pdf_page"]}'
+        img_dir = os.path.join(output_path, img_name)
+    else:
+        # Single image: output directly to output_path/
+        img_name = os.path.basename(result['input_path'])
+        if '.' in img_name:
+            img_name = img_name.rsplit('.', 1)[0]
+        img_dir = output_path
 
-    img_dir = os.path.join(output_path, img_name)
     os.makedirs(img_dir, exist_ok=True)
-
     return img_name, img_dir
 
 
