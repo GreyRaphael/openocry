@@ -92,7 +92,7 @@ def build_wheel():
     # Clean previous builds
     dist_dir = build_root / 'dist'
     build_dir = build_root / 'build'
-    egg_info_dir = build_root / 'openocr_python.egg-info'
+    egg_info_dir = build_root / 'openocry.egg-info'
 
     for dir_path in [dist_dir, build_dir, egg_info_dir]:
         if dir_path.exists():
@@ -152,7 +152,7 @@ def main():
             print('All steps completed successfully!')
             print('='*60)
             print('\nTo install the package, run:')
-            print(f'  pip install build/dist/openocr_python-*.whl')
+            print(f'  pip install build/dist/openocry-*.whl')
             print('\nAfter installation, you can use:')
             print('  openocr --help')
         else:

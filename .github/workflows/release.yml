@@ -29,7 +29,9 @@ jobs:
 
     - name: Build sdist and wheel
       run: |
-        python -m build
+        python build_package.py
+        mkdir -p dist
+        mv build/dist/* dist/
 
     - name: Publish package distributions to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
