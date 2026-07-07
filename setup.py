@@ -24,14 +24,14 @@ def get_version():
     return '0.1.0'
 
 setup(
-    name='openocr-python',
+    name='openocry',
     version=get_version(),
     description='Accurate and Efficient General OCR System',
     long_description=read_file('QUICKSTART.md'),
     long_description_content_type='text/markdown',
     author='OCR Team, FVL Lab',
     author_email='784990967@qq.com',
-    url='https://github.com/Topdu/OpenOCR',
+    url='https://github.com/GreyRaphael/openocry',
     license='Apache License 2.0',
 
     # Package configuration
@@ -68,9 +68,9 @@ setup(
 
     # Project URLs
     project_urls={
-        'Bug Reports': 'https://github.com/Topdu/OpenOCR/issues',
-        'Source': 'https://github.com/Topdu/OpenOCR',
-        'Documentation': 'https://github.com/Topdu/OpenOCR/tree/main/docs',
+        'Bug Reports': 'https://github.com/GreyRaphael/openocry/issues',
+        'Source': 'https://github.com/GreyRaphael/openocry',
+        'Documentation': 'https://github.com/GreyRaphael/openocry/tree/main/docs',
     },
     # Zip safe
     zip_safe=False,
