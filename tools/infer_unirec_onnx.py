@@ -393,8 +393,39 @@ class UniRecONNX:
                     cross_v,
                     past_key_values,
                     padding_idx=1):
-        """Unified decoder step with ORT IO Binding."""
-        # Convert inputs to OrtValues if they are numpy arrays
+        """Unified decoder step with conditional ORT IO Binding (bypassed on CPU)."""
+        if self.device_type != 'cuda':
+            # Bypass IO Binding on CPU to avoid CPU-pinned allocation/copy overhead inside the loop
+            # Convert cross_k/cross_v and past_key_values to numpy arrays if they are OrtValues
+            cross_k_np = cross_k.numpy() if not isinstance(cross_k, np.ndarray) else cross_k
+            cross_v_np = cross_v.numpy() if not isinstance(cross_v, np.ndarray) else cross_v
+
+            input_ids = np.array([[input_id]], dtype=np.int64)
+            position_ids = np.array([[padding_idx + 1 + past_length]], dtype=np.int64)
+
+            decoder_inputs = {
+                'input_ids': input_ids,
+                'position_ids': position_ids,
+                'cross_k': cross_k_np,
+                'cross_v': cross_v_np,
+            }
+
+            for i, (pk, pv) in enumerate(past_key_values):
+                pk_np = pk.numpy() if not isinstance(pk, np.ndarray) else pk
+                pv_np = pv.numpy() if not isinstance(pv, np.ndarray) else pv
+                decoder_inputs[f'past_key_{i}'] = pk_np
+                decoder_inputs[f'past_value_{i}'] = pv_np
+
+            decoder_outputs = self.decoder_session.run(None, decoder_inputs)
+            logits = decoder_outputs[0]
+
+            present_key_values = []
+            for i in range(self.num_decoder_layers):
+                present_key_values.append((decoder_outputs[1 + i * 2], decoder_outputs[1 + i * 2 + 1]))
+
+            return logits, present_key_values
+
+        # GPU (CUDA): Use high-performance OrtValue IO Binding to keep cache on device
         if isinstance(cross_k, np.ndarray):
             cross_k_val = ort.OrtValue.ortvalue_from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
         else:
@@ -434,7 +465,7 @@ class UniRecONNX:
                 past_value_val = past_value
 
             io_binding.bind_ortvalue_input(f'past_key_{i}', past_key_val)
-            io_binding.bind_ortvalue_input(f'past_value_{i}', past_value_val)
+            io_binding.bind_ortvalue_input(f'past_value_{i}', pv_np if 'pv_np' in locals() else past_value_val)
 
         # Bind outputs (on the same device to avoid host copying)
         io_binding.bind_output('logits', self.device_type, self.device_id)
@@ -448,7 +479,6 @@ class UniRecONNX:
         # Retrieve outputs as OrtValues
         ort_outputs = io_binding.get_outputs()
         logits_val = ort_outputs[0]
-        # We only transfer logits to host memory because it's small and needed for token argmax
         logits = logits_val.numpy()
 
         present_key_values = []
