@@ -396,12 +396,12 @@ class UniRecONNX:
         """Unified decoder step with ORT IO Binding."""
         # Convert inputs to OrtValues if they are numpy arrays
         if isinstance(cross_k, np.ndarray):
-            cross_k_val = ort.OrtValue.from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
+            cross_k_val = ort.OrtValue.ortvalue_from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
         else:
             cross_k_val = cross_k
 
         if isinstance(cross_v, np.ndarray):
-            cross_v_val = ort.OrtValue.from_numpy(cross_v.astype(np.float32), self.device_type, self.device_id)
+            cross_v_val = ort.OrtValue.ortvalue_from_numpy(cross_v.astype(np.float32), self.device_type, self.device_id)
         else:
             cross_v_val = cross_v
 
@@ -409,8 +409,8 @@ class UniRecONNX:
         input_ids = np.array([[input_id]], dtype=np.int64)
         position_ids = np.array([[padding_idx + 1 + past_length]], dtype=np.int64)
 
-        input_ids_val = ort.OrtValue.from_numpy(input_ids, self.device_type, self.device_id)
-        position_ids_val = ort.OrtValue.from_numpy(position_ids, self.device_type, self.device_id)
+        input_ids_val = ort.OrtValue.ortvalue_from_numpy(input_ids, self.device_type, self.device_id)
+        position_ids_val = ort.OrtValue.ortvalue_from_numpy(position_ids, self.device_type, self.device_id)
 
         # Setup IO Binding
         io_binding = self.decoder_session.io_binding()
@@ -424,12 +424,12 @@ class UniRecONNX:
         # Bind past key values
         for i, (past_key, past_value) in enumerate(past_key_values):
             if isinstance(past_key, np.ndarray):
-                past_key_val = ort.OrtValue.from_numpy(past_key.astype(np.float32), self.device_type, self.device_id)
+                past_key_val = ort.OrtValue.ortvalue_from_numpy(past_key.astype(np.float32), self.device_type, self.device_id)
             else:
                 past_key_val = past_key
 
             if isinstance(past_value, np.ndarray):
-                past_value_val = ort.OrtValue.from_numpy(past_value.astype(np.float32), self.device_type, self.device_id)
+                past_value_val = ort.OrtValue.ortvalue_from_numpy(past_value.astype(np.float32), self.device_type, self.device_id)
             else:
                 past_value_val = past_value
 
@@ -624,8 +624,8 @@ class UniRecONNX:
         encoder_hidden_states, cross_k, cross_v = encoder_outputs[0], encoder_outputs[1], encoder_outputs[2]
 
         # Convert cross_k/cross_v to OrtValues for IO Binding
-        cross_k_ort = ort.OrtValue.from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
-        cross_v_ort = ort.OrtValue.from_numpy(cross_v.astype(np.float32), self.device_type, self.device_id)
+        cross_k_ort = ort.OrtValue.ortvalue_from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
+        cross_v_ort = ort.OrtValue.ortvalue_from_numpy(cross_v.astype(np.float32), self.device_type, self.device_id)
 
         # Initialize generation: list of generated ids for each sequence in the batch
         generated_ids = [[bos_token_id] for _ in range(batch_size)]
@@ -637,8 +637,8 @@ class UniRecONNX:
             empty_key = np.zeros((batch_size, self.num_heads, 0, self.head_dim), dtype=np.float32)
             empty_value = np.zeros((batch_size, self.num_heads, 0, self.head_dim), dtype=np.float32)
             
-            empty_key_ort = ort.OrtValue.from_numpy(empty_key, self.device_type, self.device_id)
-            empty_value_ort = ort.OrtValue.from_numpy(empty_value, self.device_type, self.device_id)
+            empty_key_ort = ort.OrtValue.ortvalue_from_numpy(empty_key, self.device_type, self.device_id)
+            empty_value_ort = ort.OrtValue.ortvalue_from_numpy(empty_value, self.device_type, self.device_id)
             past_key_values.append((empty_key_ort, empty_value_ort))
 
         # Generation loop
@@ -650,8 +650,8 @@ class UniRecONNX:
             # IO Binding
             io_binding = self.decoder_session.io_binding()
             
-            input_ids_ort = ort.OrtValue.from_numpy(current_tokens, self.device_type, self.device_id)
-            position_ids_ort = ort.OrtValue.from_numpy(position_ids, self.device_type, self.device_id)
+            input_ids_ort = ort.OrtValue.ortvalue_from_numpy(current_tokens, self.device_type, self.device_id)
+            position_ids_ort = ort.OrtValue.ortvalue_from_numpy(position_ids, self.device_type, self.device_id)
             
             io_binding.bind_ortvalue_input('input_ids', input_ids_ort)
             io_binding.bind_ortvalue_input('position_ids', position_ids_ort)
