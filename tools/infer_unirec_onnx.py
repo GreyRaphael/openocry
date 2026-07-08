@@ -323,6 +323,12 @@ class UniRecONNX:
         print(f'   Head dimension: {self.head_dim}')
         print(f'   Model dimension (d_model): {self.d_model}')
         print(f'   Vocabulary size: {self.tokenizer.vocab_size}')
+        
+        # Determine device type for IO Binding
+        self.device_type = 'cuda' if 'CUDAExecutionProvider' in self.decoder_session.get_providers() and any('CUDA' in p for p in providers) else 'cpu'
+        self.device_id = 0
+        print(f'   IO Binding device: {self.device_type}:{self.device_id}')
+
 
     def _get_execution_providers(self, use_gpu):
         """Determine execution providers based on GPU availability and user preference.
@@ -387,37 +393,67 @@ class UniRecONNX:
                     cross_v,
                     past_key_values,
                     padding_idx=1):
-        """Unified decoder step with or without cache."""
-        # Prepare inputs
+        """Unified decoder step with ORT IO Binding."""
+        # Convert inputs to OrtValues if they are numpy arrays
+        if isinstance(cross_k, np.ndarray):
+            cross_k_val = ort.OrtValue.from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
+        else:
+            cross_k_val = cross_k
+
+        if isinstance(cross_v, np.ndarray):
+            cross_v_val = ort.OrtValue.from_numpy(cross_v.astype(np.float32), self.device_type, self.device_id)
+        else:
+            cross_v_val = cross_v
+
+        # Prepare input_ids and position_ids
         input_ids = np.array([[input_id]], dtype=np.int64)
-        # Use M2M100's position ID calculation with past_key_values_length
-        position_ids = np.array([[padding_idx + 1 + past_length]],
-                                dtype=np.int64)
+        position_ids = np.array([[padding_idx + 1 + past_length]], dtype=np.int64)
 
-        decoder_inputs = {
-            'input_ids': input_ids,
-            'position_ids': position_ids,
-            'cross_k': cross_k,
-            'cross_v': cross_v,
-        }
+        input_ids_val = ort.OrtValue.from_numpy(input_ids, self.device_type, self.device_id)
+        position_ids_val = ort.OrtValue.from_numpy(position_ids, self.device_type, self.device_id)
 
-        # Add past_key_values
+        # Setup IO Binding
+        io_binding = self.decoder_session.io_binding()
+
+        # Bind inputs
+        io_binding.bind_ortvalue_input('input_ids', input_ids_val)
+        io_binding.bind_ortvalue_input('position_ids', position_ids_val)
+        io_binding.bind_ortvalue_input('cross_k', cross_k_val)
+        io_binding.bind_ortvalue_input('cross_v', cross_v_val)
+
+        # Bind past key values
         for i, (past_key, past_value) in enumerate(past_key_values):
-            decoder_inputs[f'past_key_{i}'] = past_key
-            decoder_inputs[f'past_value_{i}'] = past_value
+            if isinstance(past_key, np.ndarray):
+                past_key_val = ort.OrtValue.from_numpy(past_key.astype(np.float32), self.device_type, self.device_id)
+            else:
+                past_key_val = past_key
 
-        # Run decoder
-        decoder_outputs = self.decoder_session.run(None, decoder_inputs)
+            if isinstance(past_value, np.ndarray):
+                past_value_val = ort.OrtValue.from_numpy(past_value.astype(np.float32), self.device_type, self.device_id)
+            else:
+                past_value_val = past_value
 
-        # Parse outputs
-        logits = decoder_outputs[0]
+            io_binding.bind_ortvalue_input(f'past_key_{i}', past_key_val)
+            io_binding.bind_ortvalue_input(f'past_value_{i}', past_value_val)
 
-        # Extract present_key_values
+        # Bind outputs (on the same device to avoid host copying)
+        io_binding.bind_output('logits', self.device_type, self.device_id)
+        for i in range(self.num_decoder_layers):
+            io_binding.bind_output(f'present_key_{i}', self.device_type, self.device_id)
+            io_binding.bind_output(f'present_value_{i}', self.device_type, self.device_id)
+
+        # Run session
+        self.decoder_session.run_with_iobinding(io_binding)
+
+        # Retrieve outputs as OrtValues
+        ort_outputs = io_binding.get_outputs()
+        logits_val = ort_outputs[0]
+        # We only transfer logits to host memory because it's small and needed for token argmax
+        logits = logits_val.numpy()
+
         present_key_values = []
         for i in range(self.num_decoder_layers):
-            key = decoder_outputs[1 + i * 2]
-            value = decoder_outputs[1 + i * 2 + 1]
-            present_key_values.append((key, value))
+            present_key_values.append((ort_outputs[1 + i * 2], ort_outputs[1 + i * 2 + 1]))
 
         return logits, present_key_values
 
