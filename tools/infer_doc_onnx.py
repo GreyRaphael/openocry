@@ -82,143 +82,35 @@ class LazyResultList(list):
 
 
 
+from tools.download.model_zoo import check_and_download_file, get_cache_dir
+
 def download_layout_model(model_dir=None):
     """Download layout detection ONNX model from ModelScope or HuggingFace.
-
-    Args:
-        model_dir: Directory to save model file. If None, use default cache directory.
-
-    Returns:
-        Path to the downloaded model file
+    Unifies calls under tools.download.model_zoo.
     """
-    # Use default cache directory if not specified
     if model_dir is None:
-        cache_dir = Path.home() / '.cache' / 'openocr'
-        model_dir = cache_dir / 'PP_DoclayoutV2_onnx'
+        model_dir = get_cache_dir('PP_DoclayoutV2_onnx')
     else:
         model_dir = Path(model_dir)
 
-    model_dir.mkdir(parents=True, exist_ok=True)
-
-    model_file = 'PP-DoclayoutV2.onnx'
-    model_path = model_dir / model_file
-
-    # Check if model already exists
-    if model_path.exists():
-        logger.info(f'✅ Layout model found in {model_dir}')
-        return str(model_path)
-
-    logger.info(f'📥 Downloading layout model to {model_dir}...')
-
-    download_success = False
-
-    try:
-        # Try ModelScope first (default)
-        logger.info('🌐 Trying ModelScope (China mirror) first...')
-        try:
-            from modelscope import snapshot_download
-            downloaded_path = snapshot_download(
-                'topdktu/PP_DoclayoutV2_onnx',
-                cache_dir=str(model_dir.parent)
-            )
-            logger.info(f'✅ Downloaded to {downloaded_path}')
-
-            # Copy file to target directory
-            import shutil
-            src = Path(downloaded_path) / model_file
-            if src.exists() and not model_path.exists():
-                shutil.copy(str(src), str(model_path))
-                logger.info(f'  ✓ {model_file}')
-
-            # Verify file exists after download
-            if model_path.exists():
-                download_success = True
-                logger.info('✅ Layout model downloaded successfully from ModelScope!')
-            else:
-                logger.info('⚠️  ModelScope download incomplete, trying HuggingFace...')
-
-        except ImportError:
-            logger.info('ModelScope not installed. Install with: pip install modelscope')
-            logger.info('Trying HuggingFace...')
-        except Exception as e:
-            logger.info(f'ModelScope download failed: {e}')
-            logger.info('Trying HuggingFace...')
-
-        if not download_success:
-            # Try HuggingFace
-            logger.info('🌐 Using HuggingFace...')
-            try:
-                from huggingface_hub import hf_hub_download
-                logger.info(f'  Downloading {model_file}...')
-                downloaded_path = hf_hub_download(
-                    repo_id='topdu/PP_DoclayoutV2_onnx',
-                    filename=model_file,
-                    cache_dir=str(model_dir.parent),
-                    local_dir=str(model_dir),
-                    local_dir_use_symlinks=False
-                )
-                logger.info(f'  ✓ {model_file}')
-
-                # Verify file exists after download
-                if model_path.exists():
-                    download_success = True
-                    logger.info('✅ Layout model downloaded successfully from HuggingFace!')
-
-            except ImportError:
-                raise ImportError('HuggingFace Hub not installed. Install with: pip install huggingface_hub')
-
-        if not download_success:
-            raise RuntimeError(
-                'Failed to download layout model. Please manually download from:\n'
-                '  - https://huggingface.co/topdu/PP_DoclayoutV2_onnx\n'
-                '  - https://modelscope.cn/models/topdktu/PP_DoclayoutV2_onnx'
-            )
-
-    except Exception as e:
-        logger.error(f'❌ Failed to download layout model: {e}')
-        raise
-
+    model_path = model_dir / 'PP-DoclayoutV2.onnx'
+    check_and_download_file('layout_onnx', target_path=model_path)
     return str(model_path)
 
 
 def check_and_download_layout_model(model_path, auto_download=True):
-    """Check if layout model exists, download if missing.
-
-    Args:
-        model_path: Path to layout model file
-        auto_download: If True, automatically download missing model
-
-    Returns:
-        Path to the model file
-    """
+    """Check if layout model exists, download if missing."""
+    default_path = str(get_cache_dir('PP_DoclayoutV2_onnx') / 'PP-DoclayoutV2.onnx')
     if model_path and os.path.exists(model_path):
         return model_path
 
     if not auto_download:
         if not model_path or not os.path.exists(model_path):
-            logger.error(f'⚠️  Layout model not found: {model_path}')
-            logger.info('\n📝 Manual download instructions:')
-            logger.info('   1. Visit: https://huggingface.co/topdu/PP_DoclayoutV2_onnx')
-            logger.info('   2. Download PP-DoclayoutV2.onnx')
-            logger.info('   3. Specify path with --layout_model argument')
-            raise FileNotFoundError(f'Layout model not found: {model_path}')
+            raise FileNotFoundError(f"Layout model not found at {model_path}.")
 
-    # Determine model directory from model path
-    default_path = str(Path.home() / '.cache' / 'openocr' / 'PP_DoclayoutV2_onnx' / 'PP-DoclayoutV2.onnx')
-    if model_path and model_path != default_path:
-        # User specified a custom path
-        model_dir = os.path.dirname(model_path)
-    else:
-        # Use default cache directory
-        model_dir = None
+    model_dir = os.path.dirname(model_path) if (model_path and model_path != default_path) else None
+    return download_layout_model(model_dir)
 
-    # Try ModelScope first (faster in China), then HuggingFace
-    try:
-        logger.info('🇨🇳 Trying ModelScope (China mirror) first...')
-        return download_layout_model(model_dir)
-    except:
-        logger.info('🌍 Trying HuggingFace...')
-        return download_layout_model(model_dir)
 
 
 def _get_image_name_and_dir(result: Dict, output_path: str):

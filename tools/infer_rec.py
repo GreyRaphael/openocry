@@ -30,87 +30,21 @@ MODEL_NAME_REC_ONNX = './openocr_rec_model.onnx'  # 模型文件名称
 DOWNLOAD_URL_REC_ONNX = 'https://github.com/Topdu/OpenOCR/releases/download/develop0.0.1/openocr_rec_model.onnx'  # 模型文件 URL
 
 
+from tools.download.model_zoo import check_and_download_file
+
 def check_and_download_model(model_name: str, url: str):
     """
-    检查预训练模型是否存在，若不存在则从 ModelScope 或 HuggingFace 下载到固定缓存目录。
-    优先从 ModelScope 下载，失败后回退到 HuggingFace。
-
-    Args:
-        model_name (str): 模型文件的名称，例如 "openocr_repsvtr_ch.pth"
-        url (str): 模型文件的下载地址（用于兼容，实际使用 ModelScope 和 HuggingFace）
-
-    Returns:
-        str: 模型文件的完整路径
+    检查预训练模型是否存在，若不存在则从 ModelScope 或 HuggingFace 下载。
+    通过 tools.download.model_zoo 进行统一托管。
     """
-    if os.path.exists(model_name):
-        return model_name
+    if 'onnx' in model_name:
+        key = 'rec_onnx'
+    elif 'svtrv2_ch' in model_name:
+        key = 'rec_svtrv2_server'
+    else:
+        key = 'rec_repsvtr'
+    return check_and_download_file(key, target_path=model_name)
 
-    # Strip leading './' from model_name to get a clean filename
-    clean_name = model_name.lstrip('./')
-
-    # 固定缓存路径为用户主目录下的 ".cache/openocr"
-    cache_dir = Path.home() / '.cache' / 'openocr'
-    model_path = cache_dir / clean_name
-
-    # 如果模型文件已存在，直接返回路径
-    if model_path.exists():
-        logger.info(f'Model already exists at: {model_path}')
-        return str(model_path)
-
-    # 创建缓存目录（如果不存在）
-    cache_dir.mkdir(parents=True, exist_ok=True)
-
-    # 定义下载源
-    modelscope_repo = 'topdktu/OpenOCR'
-    huggingface_repo = 'topdu/OpenOCR'
-
-    # 尝试从 ModelScope 下载
-    logger.info(f'Model not found. Attempting to download from ModelScope...')
-    try:
-        from modelscope.hub.file_download import model_file_download
-        import shutil
-        downloaded_path = model_file_download(
-            model_id=modelscope_repo,
-            file_path=clean_name,
-            cache_dir=str(cache_dir.parent)
-        )
-        # 复制文件到目标位置（处理符号链接）
-        if downloaded_path != str(model_path):
-            # 使用 copy2 而不是 move，确保复制实际文件内容
-            shutil.copy2(downloaded_path, str(model_path))
-        logger.info(f'Model downloaded from ModelScope and saved at: {model_path}')
-        return str(model_path)
-    except Exception as e:
-        logger.warning(f'Failed to download from ModelScope: {e}')
-        logger.info('Falling back to HuggingFace...')
-
-    # 回退到 HuggingFace
-    try:
-        from huggingface_hub import hf_hub_download
-        import shutil
-        downloaded_path = hf_hub_download(
-            repo_id=huggingface_repo,
-            filename=clean_name,
-            cache_dir=str(cache_dir.parent)
-        )
-        # 复制文件到目标位置（HuggingFace 返回的可能是符号链接）
-        if downloaded_path != str(model_path):
-            # 使用 copy2 而不是 move，确保复制实际文件内容而不是符号链接
-            shutil.copy2(downloaded_path, str(model_path))
-        logger.info(f'Model downloaded from HuggingFace and saved at: {model_path}')
-        return str(model_path)
-    except Exception as e:
-        logger.error(f'Failed to download from HuggingFace: {e}')
-        # 提示用户手动下载
-        logger.error(
-            f'Unable to download the model automatically. '
-            f'Please download the model manually from:\n'
-            f'  ModelScope: https://modelscope.cn/models/{modelscope_repo}\n'
-            f'  HuggingFace: https://huggingface.co/{huggingface_repo}\n'
-            f'and save it to: {model_name} or {model_path}')
-        raise RuntimeError(
-            f'Failed to download the model from both ModelScope and HuggingFace. '
-            f'Please download it manually and save it to {model_path}') from e
 
 
 class RatioRecTVReisze(object):

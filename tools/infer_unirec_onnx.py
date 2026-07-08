@@ -18,180 +18,42 @@ import onnxruntime as ort
 from PIL import Image
 
 
+from tools.download.model_zoo import check_and_download_file, get_cache_dir
+
 def download_model_files(model_dir=None):
     """Download ONNX model files from ModelScope or HuggingFace.
-
-    Args:
-        model_dir: Directory to save model files. If None, use default cache directory.
-
-    Returns:
-        Tuple of (encoder_path, decoder_path, mapping_path)
+    Unifies calls under tools.download.model_zoo.
     """
-    # Use default cache directory if not specified
     if model_dir is None:
-        cache_dir = Path.home() / '.cache' / 'openocr'
-        model_dir = cache_dir / 'unirec_0_1b_onnx'
+        model_dir = get_cache_dir('unirec_0_1b_onnx')
     else:
         model_dir = Path(model_dir)
 
-    model_dir.mkdir(parents=True, exist_ok=True)
+    enc_path = model_dir / 'unirec_encoder.onnx'
+    dec_path = model_dir / 'unirec_decoder.onnx'
+    map_path = model_dir / 'unirec_tokenizer_mapping.json'
 
-    required_files = [
-        'unirec_encoder.onnx',
-        'unirec_decoder.onnx',
-        'unirec_tokenizer_mapping.json'
-    ]
+    check_and_download_file('unirec_encoder', target_path=enc_path)
+    check_and_download_file('unirec_decoder', target_path=dec_path)
+    check_and_download_file('unirec_mapping', target_path=map_path)
 
-    # Check which files are missing
-    missing_files = [f for f in required_files if not (model_dir / f).exists()]
-
-    if not missing_files:
-        print(f'✅ All model files found in {model_dir}')
-        return tuple(str(model_dir / f) for f in required_files)
-
-    print(f'📥 Missing files: {missing_files}')
-    print(f'📥 Downloading model files to {model_dir}...')
-
-    download_success = False
-
-    try:
-        # Try ModelScope first (default)
-        print('🌐 Trying ModelScope (China mirror) first...')
-        try:
-            from modelscope import snapshot_download
-            model_path = snapshot_download(
-                'topdktu/unirec_0_1b_onnx',
-                cache_dir=str(model_dir.parent)
-            )
-            print(f'✅ Downloaded to {model_path}')
-
-            # Copy files to target directory
-            import shutil
-            for file in required_files:
-                src = Path(model_path) / file
-                dst = model_dir / file
-                if src.exists() and not dst.exists():
-                    shutil.copy(str(src), str(dst))
-                    print(f'  ✓ {file}')
-
-            # Verify all files exist after download
-            all_files_exist = all((model_dir / f).exists() for f in required_files)
-            if all_files_exist:
-                download_success = True
-                print('✅ All files downloaded successfully from ModelScope!')
-            else:
-                print('⚠️  ModelScope download incomplete, trying HuggingFace...')
-
-        except ImportError:
-            print('⚠️  modelscope not installed. Install with: pip install modelscope')
-            print('   Trying HuggingFace...')
-        except Exception as e:
-            print(f'⚠️  ModelScope download failed: {e}')
-            print('   Trying HuggingFace...')
-
-        if not download_success:
-            # Try HuggingFace
-            print('🌐 Using HuggingFace...')
-            try:
-                from huggingface_hub import hf_hub_download
-
-                for file in missing_files:
-                    print(f'  Downloading {file}...')
-                    downloaded_path = hf_hub_download(
-                        repo_id='topdu/unirec_0_1b_onnx',
-                        filename=file,
-                        cache_dir=str(model_dir.parent),
-                        local_dir=str(model_dir),
-                        local_dir_use_symlinks=False
-                    )
-                    print(f'  ✓ {file}')
-
-                # Verify all files exist after download
-                all_files_exist = all((model_dir / f).exists() for f in required_files)
-                if all_files_exist:
-                    download_success = True
-                    print('✅ All files downloaded successfully from HuggingFace!')
-
-            except ImportError:
-                print('⚠️  huggingface_hub not installed. Install with: pip install huggingface_hub')
-                raise RuntimeError(
-                    'Cannot download models. Please install either:\n'
-                    '  - huggingface_hub: pip install huggingface_hub\n'
-                    '  - modelscope: pip install modelscope\n'
-                    'Or manually download from:\n'
-                    '  - https://huggingface.co/topdu/unirec_0_1b_onnx\n'
-                    '  - https://modelscope.cn/models/topdktu/unirec_0_1b_onnx'
-                )
-
-        if not download_success:
-            raise RuntimeError(
-                'Failed to download all required files. Please manually download from:\n'
-                '  - https://huggingface.co/topdu/unirec_0_1b_onnx\n'
-                '  - https://modelscope.cn/models/topdktu/unirec_0_1b_onnx'
-            )
-    except Exception as e:
-        print(f'❌ Download failed: {e}')
-        print('\n📝 Manual download instructions:')
-        print('   1. Visit: https://huggingface.co/topdu/unirec_0_1b_onnx')
-        print('      or: https://modelscope.cn/models/topdktu/unirec_0_1b_onnx')
-        print(f'   2. Download these files to {model_dir}:')
-        for file in required_files:
-            print(f'      - {file}')
-        raise
-
-    return tuple(str(model_dir / f) for f in required_files)
+    return str(enc_path), str(dec_path), str(map_path)
 
 
 def check_and_download_models(encoder_path, decoder_path, mapping_path, auto_download=True):
-    """Check if model files exist, download if missing.
-
-    Args:
-        encoder_path: Path to encoder ONNX model
-        decoder_path: Path to decoder ONNX model
-        mapping_path: Path to tokenizer mapping JSON
-        auto_download: If True, automatically download missing files
-
-    Returns:
-        Tuple of (encoder_path, decoder_path, mapping_path) with verified paths
-    """
-    files_to_check = {
-        'encoder': encoder_path,
-        'decoder': decoder_path,
-        'mapping': mapping_path
-    }
-
-    missing_files = {k: v for k, v in files_to_check.items() if not os.path.exists(v)}
-
-    if not missing_files:
-        return encoder_path, decoder_path, mapping_path
-
-    print('⚠️  Missing model files:')
-    for name, path in missing_files.items():
-        print(f'   - {name}: {path}')
-
-    if not auto_download:
-        raise FileNotFoundError(
-            'Model files not found. Please download from:\n'
-            '  - https://huggingface.co/topdu/unirec_0_1b_onnx\n'
-            '  - https://modelscope.cn/models/topdktu/unirec_0_1b_onnx'
-        )
-
-    # Determine model directory from encoder path
-    encoder_dir = os.path.dirname(encoder_path)
-    if encoder_dir and encoder_dir != './unirec_0_1b_onnx':
-        # User specified a custom path
-        model_dir = encoder_dir
+    """Check if model files exist, download if missing."""
+    enc_dir = os.path.dirname(encoder_path)
+    if enc_dir and enc_dir != './unirec_0_1b_onnx':
+        model_dir = enc_dir
     else:
-        # Use default cache directory
         model_dir = None
 
-    # Try ModelScope first (faster in China), then HuggingFace
-    try:
-        print('🇨🇳 Trying ModelScope (China mirror) first...')
+    if not os.path.exists(encoder_path) or not os.path.exists(decoder_path) or not os.path.exists(mapping_path):
+        if not auto_download:
+            raise FileNotFoundError("UniRec model files not found locally.")
         return download_model_files(model_dir)
-    except:
-        print('🌍 Trying HuggingFace...')
-        return download_model_files(model_dir)
+    return encoder_path, decoder_path, mapping_path
+
 
 
 class SimpleImageProcessor:
