@@ -505,14 +505,18 @@ class OpenDocONNX:
         self.use_chart_recognition = use_chart_recognition
         self.max_parallel_blocks = max(1, max_parallel_blocks)
 
-        # Auto-configure thread execution options under parallel execution to prevent over-subscription
+        # Auto-configure thread execution options to prevent over-subscription of CPU cores.
+        # Since we use batched inference and pipeline parallelism, we set default ORT intra/inter op threads
+        # to sensible limits instead of leaving them unlimited (0), which causes severe CPU thrashing.
         if intra_op_num_threads is None:
-            self.intra_op_num_threads = 2 if self.max_parallel_blocks > 1 else 0
+            import os
+            cpu_count = os.cpu_count() or 4
+            self.intra_op_num_threads = min(4, max(2, cpu_count // 2))
         else:
             self.intra_op_num_threads = intra_op_num_threads
 
         if inter_op_num_threads is None:
-            self.inter_op_num_threads = 1 if self.max_parallel_blocks > 1 else 0
+            self.inter_op_num_threads = 1
         else:
             self.inter_op_num_threads = inter_op_num_threads
 
