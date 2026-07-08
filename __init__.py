@@ -50,7 +50,7 @@ if not _IS_TOOL_ACTIVE:
 # from .tools.infer_doc_onnx import OpenDocONNX
 from .openocr import OpenOCR, main
 
-__version__ = '0.1.13'
+__version__ = '0.1.14'
 
 # Lazy import for demo interfaces to avoid initialization on import
 def launch_openocr_demo(*args, **kwargs):
