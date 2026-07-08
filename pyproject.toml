@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openocry"
-version = "0.1.15"
+version = "0.1.16"
 description = "Accurate and Efficient General OCR System"
 readme = "QUICKSTART.md"
 requires-python = ">=3.8"
@@ -43,12 +43,7 @@ dependencies = [
     "numpy",
     "opencv-python",
     "Pillow",
-    "pyyaml",
-    "tqdm",
-    "rapidfuzz",
-    "pyclipper",
     "pydantic",
-    "shapely",
     "huggingface-hub",
     "modelscope",
     "onnxruntime",
@@ -62,6 +57,8 @@ onnx-gpu = [
 pytorch = [
     "torch",
     "torchvision",
+    "pyclipper",
+    "shapely",
 ]
 gradio = [
     "gradio",
@@ -70,6 +67,8 @@ all = [
     "torch",
     "torchvision",
     "gradio",
+    "pyclipper",
+    "shapely",
 ]
 
 [project.urls]
