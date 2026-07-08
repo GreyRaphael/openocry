@@ -628,63 +628,51 @@ class OpenDocONNX:
         block_labels: List[str],
         max_length: int,
     ) -> List[str]:
-        """Run VLM recognition on multiple blocks in parallel.
+        """Run VLM recognition on multiple blocks using batched inference.
 
-        Uses ThreadPoolExecutor with multiple UniRecONNX instances to process
-        up to max_parallel_blocks blocks simultaneously.
-
-        Args:
-            block_imgs: List of block images in BGR format
-            block_labels: List of block label strings
-            max_length: Maximum generation length
-
-        Returns:
-            List of recognized text strings (in original order)
+        Instead of launching multiple single-batch threads, this aggregates
+        blocks and runs them in a single session batch run.
         """
         num_blocks = len(block_imgs)
         if num_blocks == 0:
             return []
 
-        # Determine effective parallelism
-        num_workers = min(self.max_parallel_blocks, num_blocks)
+        logger.info(f'  VLM recognition: processing {num_blocks} block(s) in a single optimized batch')
 
-        # If only 1 worker, fall back to sequential processing (no overhead)
-        if num_workers <= 1:
-            logger.info(f'  VLM recognition: processing {num_blocks} block(s) sequentially')
-            results = []
+        # Run batched VLM inference
+        try:
+            # self.vlm_recognizer accepts a list of images directly
+            batch_results = self.vlm_recognizer(
+                images_list=block_imgs,
+                max_length=max_length
+            )
+        except Exception as e:
+            logger.error(f'  Batched VLM recognition failed: {e}. Falling back to sequential execution.')
+            # Fallback to sequential block-by-block processing if batched execution fails
+            batch_results = []
             for i, (block_img, block_label) in enumerate(zip(block_imgs, block_labels)):
-                _, text = self._recognize_single_block(
-                    block_img, block_label, i, max_length)
-                results.append(text)
-            return results
-
-        logger.info(f'  VLM recognition: processing {num_blocks} block(s) with {num_workers} parallel worker(s)')
-
-        # Initialize result list with placeholders
-        vl_rec_results = [''] * num_blocks
-
-        # Process all blocks using a single ThreadPoolExecutor to prevent thread creation overhead
-        # and eliminate the straggler synchronization barrier.
-        with ThreadPoolExecutor(max_workers=num_workers) as executor:
-            futures = {}
-            for i in range(num_blocks):
-                future = executor.submit(
-                    self._recognize_single_block,
-                    block_imgs[i],
-                    block_labels[i],
-                    i,
-                    max_length,
-                )
-                futures[future] = i
-
-            for future in as_completed(futures):
                 try:
-                    block_index, text = future.result()
-                    vl_rec_results[block_index] = text
-                except Exception as e:
-                    block_index = futures[future]
-                    logger.error(f'  Parallel VLM recognition failed for block {block_index}: {e}')
-                    vl_rec_results[block_index] = ''
+                    # Convert block BGR to RGB PIL image for sequential fallback compatibility
+                    block_img_rgb = cv2.cvtColor(block_img, cv2.COLOR_BGR2RGB)
+                    pil_image = Image.fromarray(block_img_rgb)
+                    res = self.vlm_recognizer(image=pil_image, max_length=max_length)
+                    batch_results.append(res)
+                except Exception as ex:
+                    logger.error(f'  Sequential fallback failed for block {i}: {ex}')
+                    batch_results.append(('', []))
+
+        # Format and post-process results
+        vl_rec_results = []
+        for i, (text, generated_ids) in enumerate(batch_results):
+            block_label = block_labels[i]
+            # Post-process with markdown_converter
+            if 'table' in block_label:
+                text = markdown_converter._handle_table(text)
+            elif 'formula' in block_label and block_label != 'formula_number':
+                text = markdown_converter._handle_formula(text)
+            else:
+                text = markdown_converter._handle_text(text)
+            vl_rec_results.append(text)
 
         return vl_rec_results
 

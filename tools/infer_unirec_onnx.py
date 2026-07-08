@@ -492,6 +492,7 @@ class UniRecONNX:
         img_path=None,
         img_numpy=None,
         image=None,
+        images_list=None,
         max_length=2048,
         bos_token_id=None,
         eos_token_id=None,
@@ -504,6 +505,7 @@ class UniRecONNX:
             img_path: Path to input image or PDF file (str or Path)
             img_numpy: Input image as numpy array (BGR format)
             image: PIL Image object (RGB format)
+            images_list: List of PIL Images or numpy arrays for batched inference
             max_length: Maximum generation length
             bos_token_id: Beginning of sequence token ID
             eos_token_id: End of sequence token ID
@@ -511,8 +513,27 @@ class UniRecONNX:
 
         Returns:
             Tuple of (generated_text, generated_ids) for single image input.
-            List of tuples [(generated_text, generated_ids), ...] for PDF input (one per page).
+            List of tuples [(generated_text, generated_ids), ...] for PDF or batched input.
         """
+        # Handle batched input list directly
+        if images_list is not None:
+            return self._infer_batch(
+                images=images_list,
+                max_length=max_length,
+                bos_token_id=bos_token_id,
+                eos_token_id=eos_token_id,
+                pad_token_id=pad_token_id,
+            )
+
+        if isinstance(image, list):
+            return self._infer_batch(
+                images=image,
+                max_length=max_length,
+                bos_token_id=bos_token_id,
+                eos_token_id=eos_token_id,
+                pad_token_id=pad_token_id,
+            )
+
         # Handle PDF input: convert to images and process each page dynamically (page-by-page) to save memory
         if img_path is not None and str(img_path).lower().endswith('.pdf'):
             print(f'Processing PDF file: {img_path}')
@@ -560,7 +581,7 @@ class UniRecONNX:
                 img_numpy = cv2.cvtColor(img_numpy, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(img_numpy)
         elif image is None:
-            raise ValueError('Either img_path, img_numpy, or image must be provided')
+            raise ValueError('Either img_path, img_numpy, image, or images_list must be provided')
 
         return self._infer_single_image(
             image=image,
@@ -569,6 +590,124 @@ class UniRecONNX:
             eos_token_id=eos_token_id,
             pad_token_id=pad_token_id,
         )
+
+    def _infer_batch(self, images, max_length=2048, bos_token_id=None, eos_token_id=None, pad_token_id=None):
+        """Run batch inference on a list of PIL Images or numpy arrays."""
+        if not images:
+            return []
+
+        # Get token IDs
+        if bos_token_id is None:
+            bos_token_id = self.tokenizer.bos_token_id
+        if eos_token_id is None:
+            eos_token_id = self.tokenizer.eos_token_id
+        if pad_token_id is None:
+            pad_token_id = self.tokenizer.pad_token_id
+
+        batch_size = len(images)
+        
+        # Preprocess all images
+        processed_data = [self.processor(img)['pixel_values'][0] for img in images]
+        
+        # Pad to max height and width in the batch
+        max_h = max(img.shape[1] for img in processed_data)
+        max_w = max(img.shape[2] for img in processed_data)
+        
+        # Stack into [N, 3, max_h, max_w]
+        padded_images = np.zeros((batch_size, 3, max_h, max_w), dtype=np.float32)
+        for idx, img in enumerate(processed_data):
+            c, h, w = img.shape
+            padded_images[idx, :, :h, :w] = img
+
+        # Encode batch
+        encoder_outputs = self.encoder_session.run(None, {'pixel_values': padded_images})
+        encoder_hidden_states, cross_k, cross_v = encoder_outputs[0], encoder_outputs[1], encoder_outputs[2]
+
+        # Convert cross_k/cross_v to OrtValues for IO Binding
+        cross_k_ort = ort.OrtValue.from_numpy(cross_k.astype(np.float32), self.device_type, self.device_id)
+        cross_v_ort = ort.OrtValue.from_numpy(cross_v.astype(np.float32), self.device_type, self.device_id)
+
+        # Initialize generation: list of generated ids for each sequence in the batch
+        generated_ids = [[bos_token_id] for _ in range(batch_size)]
+        finished = [False] * batch_size
+
+        # Initialize empty past_key_values OrtValues for first step
+        past_key_values = []
+        for _ in range(self.num_decoder_layers):
+            empty_key = np.zeros((batch_size, self.num_heads, 0, self.head_dim), dtype=np.float32)
+            empty_value = np.zeros((batch_size, self.num_heads, 0, self.head_dim), dtype=np.float32)
+            
+            empty_key_ort = ort.OrtValue.from_numpy(empty_key, self.device_type, self.device_id)
+            empty_value_ort = ort.OrtValue.from_numpy(empty_value, self.device_type, self.device_id)
+            past_key_values.append((empty_key_ort, empty_value_ort))
+
+        # Generation loop
+        for step in range(max_length - 1):
+            # Current token for each sequence
+            current_tokens = np.array([[g[-1]] for g in generated_ids], dtype=np.int64) # [N, 1]
+            position_ids = np.array([[pad_token_id + 1 + step] for _ in range(batch_size)], dtype=np.int64) # [N, 1]
+
+            # IO Binding
+            io_binding = self.decoder_session.io_binding()
+            
+            input_ids_ort = ort.OrtValue.from_numpy(current_tokens, self.device_type, self.device_id)
+            position_ids_ort = ort.OrtValue.from_numpy(position_ids, self.device_type, self.device_id)
+            
+            io_binding.bind_ortvalue_input('input_ids', input_ids_ort)
+            io_binding.bind_ortvalue_input('position_ids', position_ids_ort)
+            io_binding.bind_ortvalue_input('cross_k', cross_k_ort)
+            io_binding.bind_ortvalue_input('cross_v', cross_v_ort)
+
+            for i, (pk, pv) in enumerate(past_key_values):
+                io_binding.bind_ortvalue_input(f'past_key_{i}', pk)
+                io_binding.bind_ortvalue_input(f'past_value_{i}', pv)
+
+            # Bind outputs
+            io_binding.bind_output('logits', self.device_type, self.device_id)
+            for i in range(self.num_decoder_layers):
+                io_binding.bind_output(f'present_key_{i}', self.device_type, self.device_id)
+                io_binding.bind_output(f'present_value_{i}', self.device_type, self.device_id)
+
+            # Run
+            self.decoder_session.run_with_iobinding(io_binding)
+
+            # Outputs
+            ort_outputs = io_binding.get_outputs()
+            logits = ort_outputs[0].numpy() # [N, 1, vocab_size]
+
+            # Get next token for each sequence
+            for idx in range(batch_size):
+                if finished[idx]:
+                    generated_ids[idx].append(pad_token_id)
+                    continue
+                
+                next_token_id = int(np.argmax(logits[idx, -1, :]))
+                generated_ids[idx].append(next_token_id)
+                
+                if next_token_id == eos_token_id:
+                    finished[idx] = True
+
+            if all(finished):
+                break
+
+            # Update past_key_values for next step
+            past_key_values = []
+            for i in range(self.num_decoder_layers):
+                past_key_values.append((ort_outputs[1 + i * 2], ort_outputs[1 + i * 2 + 1]))
+
+        # Decode tokens
+        results = []
+        for g_ids in generated_ids:
+            # truncate padding tokens or eos tokens if any
+            clean_g_ids = []
+            for token in g_ids:
+                clean_g_ids.append(token)
+                if token == eos_token_id:
+                    break
+            decoded = self.tokenizer.decode(clean_g_ids, skip_special_tokens=False)
+            results.append((clean_special_tokens(decoded), clean_g_ids))
+
+        return results
 
     def _infer_single_image(
         self,
