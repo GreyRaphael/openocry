@@ -1117,8 +1117,13 @@ class OpenDocONNX:
             if os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
-    def save_to_json(self, result: Dict, output_path: str):
+    def save_to_json(self, result: Union[Dict, List[Dict], LazyResultList], output_path: str):
         """保存结果为JSON"""
+        if not isinstance(result, dict):
+            for page_res in result:
+                self.save_to_json(page_res, output_path)
+            return
+
         img_name, img_dir = _get_image_name_and_dir(result, output_path)
         json_path = os.path.join(img_dir, f'{img_name}.json')
 
@@ -1131,8 +1136,13 @@ class OpenDocONNX:
 
         # logger.info(f"  Saved JSON to {json_path}")
 
-    def save_to_markdown(self, result: Dict, output_path: str):
+    def save_to_markdown(self, result: Union[Dict, List[Dict], LazyResultList], output_path: str):
         """保存结果为Markdown，按阅读顺序包含图片"""
+        if not isinstance(result, dict):
+            for page_res in result:
+                self.save_to_markdown(page_res, output_path)
+            return
+
         img_name, img_dir = _get_image_name_and_dir(result, output_path)
         md_path = os.path.join(img_dir, f'{img_name}.md')
 
@@ -1245,8 +1255,13 @@ class OpenDocONNX:
         else:
             f.write(f'{merged_text}\n\n')
 
-    def save_visualization(self, result: Dict, output_path: str):
+    def save_visualization(self, result: Union[Dict, List[Dict], LazyResultList], output_path: str):
         """保存可视化结果"""
+        if not isinstance(result, dict):
+            for page_res in result:
+                self.save_visualization(page_res, output_path)
+            return
+
         img_name, img_dir = _get_image_name_and_dir(result, output_path)
         vis_path = os.path.join(img_dir, f'{img_name}_vis.jpg')
 
