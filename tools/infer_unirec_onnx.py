@@ -95,26 +95,39 @@ class SimpleImageProcessor:
 
     def __call__(self, image):
         """
-        Process image for model input.
+        Process image for model input using OpenCV resize.
 
         Args:
-            image: PIL Image
+            image: PIL Image or numpy array
 
         Returns:
             dict with 'pixel_values' as numpy array [1, 3, H, W]
         """
-        if not isinstance(image, Image.Image):
-            raise ValueError('Input must be PIL Image')
+        import cv2
+        if isinstance(image, Image.Image):
+            image_np = np.array(image)
+        elif isinstance(image, np.ndarray):
+            image_np = image.copy()
+        else:
+            raise ValueError('Input must be PIL Image or numpy array')
 
-        original_width, original_height = image.size
+        original_height, original_width = image_np.shape[:2]
 
-        # Resize
-        target_size = self._calculate_target_size(original_width,
-                                                  original_height)
-        image = image.resize(target_size, resample=Image.BICUBIC)
+        # Calculate target size with aspect ratio preservation
+        target_width, target_height = self._calculate_target_size(original_width,
+                                                                 original_height)
 
-        # Convert to numpy array [H, W, C] and normalize to [0, 1]
-        image_np = np.array(image, dtype=np.float32)[:, :, :3] / 255.0
+        # OpenCV cubic resize
+        resized = cv2.resize(image_np, (target_width, target_height), interpolation=cv2.INTER_CUBIC)
+
+        # Handle different channel formats (ensure RGB)
+        if len(resized.shape) == 2:
+            resized = cv2.cvtColor(resized, cv2.COLOR_GRAY2RGB)
+        elif resized.shape[2] == 4:
+            resized = resized[:, :, :3]
+
+        # Convert to float32 and normalize to [0, 1]
+        image_np = resized.astype(np.float32) / 255.0
 
         # Normalize: (x - mean) / std
         image_np = (image_np - self.image_mean) / self.image_std
