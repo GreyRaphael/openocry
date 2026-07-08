@@ -716,28 +716,14 @@ class OpenDocONNX:
         max_length: int = 2048,
         merge_layout_blocks: bool = True,
     ) -> Union[Dict, List[Dict]]:
-        """
-        Unified interface for OpenDoc inference.
-
-        Args:
-            img_path: Path to input image or PDF file (str or Path)
-            img_numpy: Input image as numpy array (BGR format)
-            image_path: Alias for img_path (for backward compatibility)
-            layout_threshold: Layout detection threshold
-            max_length: VLM maximum generation length
-            merge_layout_blocks: Whether to merge layout blocks
-
-        Returns:
-            Prediction result dictionary for single image input.
-            List of prediction result dictionaries for PDF input (one per page).
-        """
         # Handle backward compatibility: image_path is alias for img_path
         if image_path is not None and img_path is None:
             img_path = image_path
 
         # Handle PDF input: convert to images and process each page dynamically (page-by-page) to save memory
+        # stage 1 (Layout detection) and stage 2 (VLM Recognition) run in parallel as a pipeline
         if img_path is not None and str(img_path).lower().endswith('.pdf'):
-            logger.info(f'Processing PDF file: {img_path}')
+            logger.info(f'Processing PDF file with Pipeline Parallelism: {img_path}')
             try:
                 import fitz
             except ImportError:
@@ -745,39 +731,82 @@ class OpenDocONNX:
                     'PyMuPDF is required for PDF support. '
                     'Install with: pip install PyMuPDF'
                 )
-            
-            def page_generator():
-                with fitz.open(img_path) as pdf:
-                    total_pages = pdf.page_count
-                    logger.info(f'Found {total_pages} pages in PDF')
-                    for page_idx in range(total_pages):
-                        logger.info(f'\n--- Processing page {page_idx + 1}/{total_pages} ---')
-                        page = pdf[page_idx]
-                        mat = fitz.Matrix(2, 2)
-                        pm = page.get_pixmap(matrix=mat, alpha=False)
-                        if pm.width > 2000 or pm.height > 2000:
-                            pm = page.get_pixmap(matrix=fitz.Matrix(1, 1), alpha=False)
-                        img = Image.frombytes('RGB', [pm.width, pm.height], pm.samples)
-                        page_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-                        
-                        page_result = self._infer_single_image(
-                            img_numpy=page_img,
-                            original_path=img_path,
-                            page_index=page_idx,
-                            layout_threshold=layout_threshold,
-                            max_length=max_length,
-                            merge_layout_blocks=merge_layout_blocks,
-                            total_pages=total_pages,
-                        )
-                        
-                        # Release memory reference immediately
-                        del page_img
-                        del pm
-                        del img
-                        
-                        yield page_result
 
-            return LazyResultList(page_generator())
+            import queue
+            import threading
+
+            # Use a bounded queue to limit maximum memory consumption
+            page_queue = queue.Queue(maxsize=3)
+
+            def stage1_detector_thread():
+                try:
+                    with fitz.open(img_path) as pdf:
+                        total_pages = pdf.page_count
+                        logger.info(f'Found {total_pages} pages in PDF (Stage 1 Loader/Detector)')
+                        for page_idx in range(total_pages):
+                            page = pdf[page_idx]
+                            mat = fitz.Matrix(2, 2)
+                            pm = page.get_pixmap(matrix=mat, alpha=False)
+                            if pm.width > 2000 or pm.height > 2000:
+                                pm = page.get_pixmap(matrix=fitz.Matrix(1, 1), alpha=False)
+                            img = Image.frombytes('RGB', [pm.width, pm.height], pm.samples)
+                            page_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+                            # Run layout detection
+                            ori_h, ori_w = page_img.shape[:2]
+                            if self.use_layout_detection:
+                                layout_results = self.layout_detector([page_img], threshold=layout_threshold)[0]
+                            else:
+                                layout_results = {
+                                    'boxes': [{
+                                        'cls_id': 0,
+                                        'label': 'text',
+                                        'score': 1.0,
+                                        'coordinate': [0, 0, ori_w, ori_h]
+                                    }]
+                                }
+
+                            # Stash page image and layout detection results in queue
+                            page_queue.put((page_img, layout_results, page_idx, total_pages))
+
+                            # Clean memory references
+                            del pm
+                            del img
+                except Exception as e:
+                    logger.error(f"Error in Stage 1 PDF loader/detector: {e}")
+                finally:
+                    # Put sentinel to signal completion
+                    page_queue.put(None)
+
+            def page_generator_pipeline():
+                # Start Stage 1 thread
+                t = threading.Thread(target=stage1_detector_thread)
+                t.daemon = True
+                t.start()
+
+                while True:
+                    item = page_queue.get()
+                    if item is None:
+                        break
+
+                    page_img, layout_results, page_idx, total_pages = item
+                    logger.info(f'\n--- Processing page {page_idx + 1}/{total_pages} (Stage 2: VLM Recognition) ---')
+
+                    # Process layouts and run VLM batch recognition
+                    page_result = self._process_page_from_layout(
+                        image=page_img,
+                        layout_results=layout_results,
+                        actual_path=img_path,
+                        page_index=page_idx,
+                        total_pages=total_pages,
+                        max_length=max_length,
+                        merge_layout_blocks=merge_layout_blocks,
+                    )
+                    # Keep raw page image reference for save_* methods
+                    page_result['_page_image'] = page_img
+                    yield page_result
+
+            return LazyResultList(page_generator_pipeline())
 
         # Load image from path or numpy array
         is_temp_file = False
@@ -799,6 +828,8 @@ class OpenDocONNX:
         # 读取图像
         image = cv2.imread(actual_path)
         if image is None:
+            if is_temp_file and os.path.exists(actual_path):
+                os.remove(actual_path)
             raise ValueError(f'Failed to read image: {actual_path}')
 
         ori_h, ori_w = image.shape[:2]
@@ -820,7 +851,42 @@ class OpenDocONNX:
             }
             logger.info('  Layout detection disabled, processing whole image')
 
-        # 确定 image_labels
+        # Run block parsing and recognition
+        result = self._process_page_from_layout(
+            image=image,
+            layout_results=layout_results,
+            actual_path=actual_path,
+            page_index=0,
+            total_pages=1,
+            max_length=max_length,
+            merge_layout_blocks=merge_layout_blocks,
+            is_temp_file=is_temp_file,
+            start_time=start_time
+        )
+
+        # Clean up temporary file if created
+        if is_temp_file and os.path.exists(actual_path):
+            os.remove(actual_path)
+
+        return result
+
+    def _process_page_from_layout(
+        self,
+        image: np.ndarray,
+        layout_results: Dict,
+        actual_path: str,
+        page_index: int,
+        total_pages: Optional[int] = None,
+        max_length: int = 2048,
+        merge_layout_blocks: bool = True,
+        is_temp_file: bool = False,
+        start_time: Optional[float] = None
+    ) -> Dict:
+        """Process page image blocks and execute VLM recognition on them."""
+        if start_time is None:
+            start_time = time.time()
+
+        ori_h, ori_w = image.shape[:2]
         image_labels = (IMAGE_LABELS if self.use_chart_recognition else
                         IMAGE_LABELS + ['chart'])
 
@@ -856,23 +922,21 @@ class OpenDocONNX:
 
         for j, block in enumerate(blocks):
             block_label = block['label']
-            # 提取基础标签名（去除编号后缀）
             base_label = block_label.rsplit(
                 '_', 1)[0] if '_' in block_label and block_label.rsplit(
                     '_', 1)[1].isdigit() else block_label
             if base_label in image_labels and block['img'] is not None:
                 x_min, y_min, x_max, y_max = list(map(int, block['box']))
-                img_path = f'imgs/img_in_{base_label}_box_{x_min}_{y_min}_{x_max}_{y_max}.jpg'
+                img_path_field = f'imgs/img_in_{base_label}_box_{x_min}_{y_min}_{x_max}_{y_max}.jpg'
                 imgs_in_doc.append({
                     'coordinate': block['box'],
-                    'path': img_path
+                    'path': img_path_field
                 })
 
         # 处理每个block
         for j, block in enumerate(blocks):
             block_img = block['img']
             block_label = block['label']
-            # 提取基础标签名（去除编号后缀）
             base_label = block_label.rsplit(
                 '_', 1)[0] if '_' in block_label and block_label.rsplit(
                     '_', 1)[1].isdigit() else block_label
@@ -900,7 +964,7 @@ class OpenDocONNX:
                 vlm_block_ids.append(j)
                 drop_figures_set.update(drop_figures)
 
-        # VLM识别 (parallel processing with up to max_parallel_blocks workers)
+        # VLM识别
         vl_rec_results = self._parallel_vlm_recognize(
             block_imgs, block_labels, max_length)
 
@@ -932,8 +996,8 @@ class OpenDocONNX:
                 if has_paren or has_bracket:
                     result_str = result_str.replace('$', '')
                     result_str = (result_str.replace('\\(', ' $ ').replace(
-                        '\\)', ' $ ').replace('\\[',
-                                              ' $$ ').replace('\\]', ' $$ '))
+                         '\\)', ' $ ').replace('\\[',
+                                               ' $$ ').replace('\\]', ' $$ '))
                     if block_label == 'formula_number':
                         result_str = result_str.replace('$', '')
 
@@ -947,20 +1011,15 @@ class OpenDocONNX:
 
                 block_content = result_str
 
-            # 处理图像类标签（去除编号后缀判断）
             base_label = block_label.rsplit(
                 '_', 1)[0] if '_' in block_label and block_label.rsplit(
                     '_', 1)[1].isdigit() else block_label
 
-            # 判断是否是合并块的后续部分（img 为 None 表示是合并块的后续部分）
             is_merged_continuation = block_img is None
 
             if base_label in image_labels and block_img is not None:
                 x_min, y_min, x_max, y_max = list(map(int, block_bbox))
-                img_path = f'imgs/img_in_{base_label}_box_{x_min}_{y_min}_{x_max}_{y_max}.jpg'
-                # 不跳过表格中的图片，需要保存它们
-                # if img_path in drop_figures_set:
-                #     continue
+                img_path_field = f'imgs/img_in_{base_label}_box_{x_min}_{y_min}_{x_max}_{y_max}.jpg'
                 recognition_results.append({
                     'label': block_label,
                     'bbox': block_bbox,
@@ -968,9 +1027,9 @@ class OpenDocONNX:
                     'text': '',
                     'text_unirec': '',
                     'is_image': True,
-                    'img_path': img_path,
+                    'img_path': img_path_field,
                     'is_merged_continuation': False,
-                    'in_table': img_path in drop_figures_set  # 标记是否在表格中
+                    'in_table': img_path_field in drop_figures_set
                 })
             else:
                 recognition_results.append({
@@ -984,7 +1043,6 @@ class OpenDocONNX:
                 })
 
         total_time = time.time() - start_time
-        logger.info(f'  Total time: {total_time: .3f}s')
 
         result = {
             'input_path': actual_path if not is_temp_file else '<numpy_array>',
@@ -997,11 +1055,10 @@ class OpenDocONNX:
                 'total': total_time,
             }
         }
-
-        # Clean up temporary file if created
-        if is_temp_file and os.path.exists(actual_path):
-            os.remove(actual_path)
-
+        if page_index is not None:
+            result['pdf_page'] = page_index + 1
+        if total_pages is not None:
+            result['pdf_total_pages'] = total_pages
         return result
 
     def _infer_single_image(
