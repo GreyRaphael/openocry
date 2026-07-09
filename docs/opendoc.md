@@ -27,8 +27,11 @@ Parse documents with layout analysis, table/formula/table recognition:
 # Full document parsing with all outputs
 openocr --task doc --input_path path/to/img --use_layout_detection --save_vis --save_json --save_markdown
 
-# Parse PDF document
+# Parse PDF document (automatically processed page-by-page dynamically to save memory)
 openocr --task doc --input_path document.pdf --use_layout_detection --save_vis --save_json --save_markdown
+
+# Speed up CPU inference using dynamically quantized INT8 VLM models
+openocr --task doc --input_path document.pdf --encoder_model ~/.cache/openocr/unirec_0_1b_onnx/unirec_encoder_quant.onnx --decoder_model ~/.cache/openocr/unirec_0_1b_onnx/unirec_decoder_quant.onnx --save_markdown
 
 # Custom layout threshold
 openocr --task doc --input_path path/to/img --use_layout_detection --save_vis --save_json --save_markdown --layout_threshold 0.5
@@ -54,13 +57,23 @@ doc_parser = OpenOCR(
     use_layout_detection=True,
 )
 
+# Initialize OpenDoc with quantized models and optimal threading configuration on CPU
+# (Limits core oversaturation and enables 2x-4x speedups on CPU)
+doc_parser_quant = OpenOCR(
+    task='doc',
+    use_layout_detection=True,
+    unirec_encoder_path='~/.cache/openocr/unirec_0_1b_onnx/unirec_encoder_quant.onnx',
+    unirec_decoder_path='~/.cache/openocr/unirec_0_1b_onnx/unirec_decoder_quant.onnx',
+    max_parallel_blocks=4,           # Number of VLM blocks to process concurrently
+)
+
 # Parse document
-result = doc_parser(image_path='path/to/document.jpg')
+result = doc_parser_quant(image_path='path/to/document.jpg')
 
 # Save results
-doc_parser.save_to_markdown(result, './output')
-doc_parser.save_to_json(result, './output')
-doc_parser.save_visualization(result, './output')
+doc_parser_quant.save_to_markdown(result, './output')
+doc_parser_quant.save_to_json(result, './output')
+doc_parser_quant.save_visualization(result, './output')
 ```
 
 ## Get Started with Source

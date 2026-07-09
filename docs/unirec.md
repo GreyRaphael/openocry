@@ -29,6 +29,9 @@ Recognize text, formulas, and tables using Vision-Language Model:
 # Basic usage
 openocr --task unirec --input_path path/to/img
 
+# Speed up CPU inference using dynamically quantized INT8 VLM models
+openocr --task unirec --input_path path/to/img --encoder_model ~/.cache/openocr/unirec_0_1b_onnx/unirec_encoder_quant.onnx --decoder_model ~/.cache/openocr/unirec_0_1b_onnx/unirec_decoder_quant.onnx
+
 # Process directory
 openocr --task unirec --input_path ./images --output_path ./results
 ```
@@ -50,8 +53,16 @@ from openocr import OpenOCR
 # Initialize UniRec
 unirec = OpenOCR(task='unirec')
 
+# Initialize UniRec with quantized models and CPU thread control
+# (Limits core oversaturation and enables 2x-4x speedups on CPU)
+unirec_quant = OpenOCR(
+    task='unirec',
+    unirec_encoder_path='~/.cache/openocr/unirec_0_1b_onnx/unirec_encoder_quant.onnx',
+    unirec_decoder_path='~/.cache/openocr/unirec_0_1b_onnx/unirec_decoder_quant.onnx',
+)
+
 # Recognize text/formula/table
-result_text, generated_ids = unirec(
+result_text, generated_ids = unirec_quant(
     image_path='path/to/image.jpg',
     max_length=2048
 )
