@@ -342,10 +342,8 @@ class UniRecONNX:
         """
         available_providers = ort.get_available_providers()
 
-        cpu_providers = []
-        if 'OpenVINOExecutionProvider' in available_providers:
-            cpu_providers.append('OpenVINOExecutionProvider')
-        cpu_providers.append('CPUExecutionProvider')
+        # Disable OpenVINO for VLM (UniRec) due to precision degradation causing infinite token loops.
+        cpu_providers = ['CPUExecutionProvider']
 
         if use_gpu is False:
             # Force CPU

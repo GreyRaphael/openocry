@@ -649,13 +649,40 @@ class OpenDocONNX:
         is_cpu = getattr(self.vlm_recognizer, 'device_type', 'cpu') == 'cpu'
 
         if is_cpu:
-            logger.info(f'  VLM recognition (CPU): processing {num_blocks} block(s) sequentially (full-core acceleration)')
-            results = []
-            for i, (block_img, block_label) in enumerate(zip(block_imgs, block_labels)):
-                _, text = self._recognize_single_block(
-                    block_img, block_label, i, max_length)
-                results.append(text)
-            return results
+            logger.info(f'  VLM recognition (CPU): processing {num_blocks} block(s) using ThreadPoolExecutor')
+            num_workers = min(self.max_parallel_blocks, num_blocks)
+            if num_workers <= 1:
+                results = []
+                for i, (block_img, block_label) in enumerate(zip(block_imgs, block_labels)):
+                    _, text = self._recognize_single_block(
+                        block_img, block_label, i, max_length)
+                    results.append(text)
+                return results
+
+            # Initialize result list with placeholders
+            vl_rec_results = [''] * num_blocks
+
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                futures = {}
+                for i in range(num_blocks):
+                    future = executor.submit(
+                        self._recognize_single_block,
+                        block_imgs[i],
+                        block_labels[i],
+                        i,
+                        max_length,
+                    )
+                    futures[future] = i
+
+                for future in as_completed(futures):
+                    try:
+                        block_index, text = future.result()
+                        vl_rec_results[block_index] = text
+                    except Exception as e:
+                        block_index = futures[future]
+                        logger.error(f'  Parallel VLM recognition failed for block {block_index}: {e}')
+                        vl_rec_results[block_index] = ''
+            return vl_rec_results
 
         # Else, GPU (CUDA): Run optimized batched VLM inference
         logger.info(f'  VLM recognition (GPU): processing {num_blocks} block(s) in a single optimized batch')
