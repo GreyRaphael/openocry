@@ -224,14 +224,11 @@ class LayoutDetectorONNX:
         """
         available_providers = ort.get_available_providers()
 
-        cpu_providers = []
-        if 'OpenVINOExecutionProvider' in available_providers:
-            cpu_providers.append('OpenVINOExecutionProvider')
-        cpu_providers.append('CPUExecutionProvider')
+        cpu_providers = ['CPUExecutionProvider']
 
         if use_gpu is False:
             # Force CPU
-            logger.info(f"🔧 User specified: Using CPU for layout detection ({cpu_providers[0]})")
+            logger.info("🔧 User specified: Using CPU for layout detection")
             return cpu_providers
 
         # Check for GPU providers
@@ -247,7 +244,7 @@ class LayoutDetectorONNX:
                 logger.info(f'🔧 User specified: Using GPU for layout detection ({gpu_providers[0]})')
                 return gpu_providers + cpu_providers
             else:
-                logger.warning(f'⚠️  GPU requested but not available, falling back to CPU ({cpu_providers[0]})')
+                logger.warning('⚠️  GPU requested but not available, falling back to CPU')
                 return cpu_providers
 
         # Auto-detect (use_gpu is None)
@@ -255,7 +252,7 @@ class LayoutDetectorONNX:
             logger.info(f'✅ GPU detected for layout detection: Using {gpu_providers[0]}')
             return gpu_providers + cpu_providers
         else:
-            logger.info(f'ℹ️  No GPU detected for layout detection, using CPU ({cpu_providers[0]})')
+            logger.info('ℹ️  No GPU detected for layout detection, using CPU')
             return cpu_providers
 
 
