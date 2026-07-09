@@ -465,7 +465,7 @@ class UniRecONNX:
                 past_value_val = past_value
 
             io_binding.bind_ortvalue_input(f'past_key_{i}', past_key_val)
-            io_binding.bind_ortvalue_input(f'past_value_{i}', pv_np if 'pv_np' in locals() else past_value_val)
+            io_binding.bind_ortvalue_input(f'past_value_{i}', past_value_val)
 
         # Bind outputs (on the same device to avoid host copying)
         io_binding.bind_output('logits', self.device_type, self.device_id)
