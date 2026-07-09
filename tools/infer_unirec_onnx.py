@@ -132,8 +132,9 @@ class SimpleImageProcessor:
         # Normalize: (x - mean) / std
         image_np = (image_np - self.image_mean) / self.image_std
 
-        # Transpose to [C, H, W]
+        # Transpose to [C, H, W] and ensure contiguous memory layout
         image_np = image_np.transpose(2, 0, 1)
+        image_np = np.ascontiguousarray(image_np, dtype=np.float32)
 
         # Add batch dimension [1, C, H, W]
         image_np = np.expand_dims(image_np, axis=0)
@@ -341,10 +342,15 @@ class UniRecONNX:
         """
         available_providers = ort.get_available_providers()
 
+        cpu_providers = []
+        if 'OpenVINOExecutionProvider' in available_providers:
+            cpu_providers.append('OpenVINOExecutionProvider')
+        cpu_providers.append('CPUExecutionProvider')
+
         if use_gpu is False:
             # Force CPU
-            print('🔧 User specified: Using CPU')
-            return ['CPUExecutionProvider']
+            print(f"🔧 User specified: Using CPU ({cpu_providers[0]})")
+            return cpu_providers
 
         # Check for GPU providers
         gpu_providers = []
@@ -357,18 +363,18 @@ class UniRecONNX:
             # Force GPU
             if gpu_providers:
                 print(f'🔧 User specified: Using GPU ({gpu_providers[0]})')
-                return gpu_providers + ['CPUExecutionProvider']
+                return gpu_providers + cpu_providers
             else:
-                print('⚠️  GPU requested but not available, falling back to CPU')
-                return ['CPUExecutionProvider']
+                print(f'⚠️  GPU requested but not available, falling back to CPU ({cpu_providers[0]})')
+                return cpu_providers
 
         # Auto-detect (use_gpu is None)
         if gpu_providers:
             print(f'✅ GPU detected: Using {gpu_providers[0]}')
-            return gpu_providers + ['CPUExecutionProvider']
+            return gpu_providers + cpu_providers
         else:
-            print('ℹ️  No GPU detected, using CPU')
-            return ['CPUExecutionProvider']
+            print(f'ℹ️  No GPU detected, using CPU ({cpu_providers[0]})')
+            return cpu_providers
 
     def encode_image(self, image):
         """Encode image using encoder ONNX model."""
