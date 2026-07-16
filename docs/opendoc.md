@@ -1,6 +1,6 @@
 # OpenDoc-0.1B: Ultra-Lightweight Document Parsing System with 0.1B Parameters
 
-- \[[Quick Start](#quick-start)\] \[[ModelScope Demo](https://www.modelscope.cn/studios/topdktu/OpenDoc-0.1B-Demo)\] \[[Hugging Face Demo](https://huggingface.co/spaces/topdu/OpenDoc-0.1B-Demo)\] \[[Local Demo](#local-demo)\]
+- \[[Quick Start](#quick-start)\] \[[Examples](https://github.com/GreyRaphael/openocry_examples)\] \[[ModelScope Demo](https://www.modelscope.cn/studios/topdktu/OpenDoc-0.1B-Demo)\] \[[Hugging Face Demo](https://huggingface.co/spaces/topdu/OpenDoc-0.1B-Demo)\] \[[Local Demo](#local-demo)\]
 
 ## Introduction
 
@@ -12,13 +12,13 @@
 
 ```bash
 # Install from PyPI (recommended)
-pip install openocr-python==0.1.5
+pip install openocry==0.1.19
 
 # Or install from source
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 python build_package.py
-pip install ./build/dist/openocr_python-*.whl
+pip install ./build/dist/openocry-*.whl
 ```
 
 Parse documents with layout analysis, table/formula/table recognition:
@@ -84,8 +84,8 @@ doc_parser_quant.save_visualization(result, './output')
 conda create -n openocr python=3.10
 conda activate openocr
 
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 pip install -r requirements.txt
 
 python -m pip install paddlepaddle-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/

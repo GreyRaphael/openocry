@@ -1,16 +1,16 @@
 <div align="center">
 
-<h1> OpenOCR: An Open-Source Toolkit for General-OCR Research and Applications </h1>
+<h1> openocry: Accurate and Efficient General OCR System </h1>
 
-<h5 align="center"> If you find this project useful, please give us a star🌟. </h5>
+<h5 align="center"> A Python library adapted from <a href="https://github.com/Topdu/OpenOCR">OpenOCR</a>. If you find this project useful, please give us a star🌟. </h5>
 
-<a href="https://github.com/Topdu/OpenOCR/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/Topdu/OpenOCR"></a>
+<a href="https://github.com/GreyRaphael/openocry/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/GreyRaphael/openocry"></a>
 <a href=""><img src="https://img.shields.io/badge/OS-Linux%2C%20Win%2C%20Mac-pink.svg"></a>
-<a href="https://github.com/Topdu/OpenOCR/graphs/contributors"><img src="https://img.shields.io/github/contributors/Topdu/OpenOCR?color=9ea"></a>
-<a href="https://pepy.tech/project/openocr"><img src="https://static.pepy.tech/personalized-badge/openocr?period=total&units=abbreviation&left_color=grey&right_color=blue&left_text=Clone%20downloads"></a>
-<a href="https://github.com/Topdu/OpenOCR/stargazers"><img src="https://img.shields.io/github/stars/Topdu/OpenOCR?color=ccf"></a>
-<a href="https://pypi.org/project/openocr-python/"><img alt="PyPI" src="https://img.shields.io/pypi/v/openocr-python"></a>
-<a href="https://pypi.org/project/openocr-python/"><img src="https://img.shields.io/pypi/dm/openocr-python?label=PyPI%20downloads"></a>
+<a href="https://github.com/GreyRaphael/openocry/graphs/contributors"><img src="https://img.shields.io/github/contributors/GreyRaphael/openocry?color=9ea"></a>
+<a href="https://pepy.tech/project/openocry"><img src="https://static.pepy.tech/personalized-badge/openocry?period=total&units=abbreviation&left_color=grey&right_color=blue&left_text=Clone%20downloads"></a>
+<a href="https://github.com/GreyRaphael/openocry/stargazers"><img src="https://img.shields.io/github/stars/GreyRaphael/openocry?color=ccf"></a>
+<a href="https://pypi.org/project/openocry/"><img alt="PyPI" src="https://img.shields.io/pypi/v/openocry"></a>
+<a href="https://pypi.org/project/openocry/"><img src="https://img.shields.io/pypi/dm/openocry?label=PyPI%20downloads"></a>
 
 English | [简体中文](./README_ch.md)
 
@@ -18,11 +18,11 @@ English | [简体中文](./README_ch.md)
 
 ______________________________________________________________________
 
-OpenOCR is an open-source toolkit developed by the OCR team from [FVL Lab](https://fvl.fudan.edu.cn), Fudan University, under the guidance of Prof. [Yu-Gang Jiang](https://scholar.google.com/citations?user=f3_FP8AAAAAJ) and Prof. [Zhineng Chen](https://zhinchenfd.github.io). It focuses on 「General-OCR」 tasks, including **Text Detection and Recognition, Formula and Table Recognition**, as well as **Document Parsing and Understanding**. The toolkit integrates a unified training and evaluation benchmark, commercial-grade OCR and Document Parsing systems, and faithful reproductions of the core implementations from a wide range of academic papers.
+**openocry** (`openocry`) is a Python library based on and adapted from [OpenOCR](https://github.com/Topdu/OpenOCR). OpenOCR is an open-source toolkit developed by the OCR team from [FVL Lab](https://fvl.fudan.edu.cn), Fudan University, under the guidance of Prof. [Yu-Gang Jiang](https://scholar.google.com/citations?user=f3_FP8AAAAAJ) and Prof. [Zhineng Chen](https://zhinchenfd.github.io). It focuses on 「General-OCR」 tasks, including **Text Detection and Recognition, Formula and Table Recognition**, as well as **Document Parsing and Understanding**. The toolkit integrates a unified training and evaluation benchmark, commercial-grade OCR and Document Parsing systems, and faithful reproductions of the core implementations from a wide range of academic papers.
 
-OpenOCR aims to build a comprehensive open-source ecosystem for General-OCR, bridging academic research and real-world applications, and fostering the collaborative development and widespread deployment of OCR technologies across both research frontiers and industrial scenarios. We welcome researchers, developers, and industry partners to explore the toolkit and share feedback.
+**openocry** wraps the OpenOCR capabilities into a clean Python distribution (`pip install openocry==0.1.19`), exposing both the `openocr` command-line tool and Python APIs (`from openocr import OpenOCR`). We welcome researchers, developers, and industry partners to explore the toolkit and share feedback.
 
-## 🚀 [Quick Start](./QUICKSTART.md)
+## 🚀 [Quick Start](./QUICKSTART.md) | 💡 [Examples & Tutorials](https://github.com/GreyRaphael/openocry_examples)
 
 ## Features
 
@@ -90,8 +90,9 @@ OpenOCR aims to build a comprehensive open-source ecosystem for General-OCR, bri
 
 ## Recent Updates
 
-- **2026.02.12**: 🔥 Releasing openocr-python 0.1.5: Support the PDF file as an input; Parallel recognition of document elements; Add [skill](https://clawhub.ai/Topdu/openocr-skill) for OpenClaw Agent. Accessible in [Doc](./QUICKSTART.md).
-- **2026.02.06**: 🔥 Releasing openocr-python 0.1.3, and using a unified interface for OpenOCR, Document Parsing OpenDoc-0.1B, and UniRec-0.1B. Accessible in [Doc](./QUICKSTART.md).
+- **0.1.19**: 🔥 Releasing `openocry` Python package (`pip install openocry==0.1.19`) adapted from OpenOCR with unified command-line `openocr` and `from openocr import OpenOCR` interface. Accessible in [Doc](./QUICKSTART.md).
+- **2026.02.12**: 🔥 Releasing openocr-python (now openocry) 0.1.5: Support the PDF file as an input; Parallel recognition of document elements; Add [skill](https://clawhub.ai/Topdu/openocr-skill) for OpenClaw Agent. Accessible in [Doc](./QUICKSTART.md).
+- **2026.02.06**: 🔥 Releasing openocr-python (now openocry) 0.1.3, and using a unified interface for OpenOCR, Document Parsing OpenDoc-0.1B, and UniRec-0.1B. Accessible in [Doc](./QUICKSTART.md).
 - **2026.01.13**: 🔥 Releasing [CMER](./configs/rec/cmer/) code and [MER-17M](https://huggingface.co/datasets/topdu/MER-17M) dataset.
 - **2026.01.07**: 🔥 Releasing [UniRec40M](https://huggingface.co/datasets/topdu/UniRec40M) dataset, which includes 40 million instances of recognition data comprising text, formulas, and text-formula mixed content.
 - **2025.12.25**: 🔥 Releasing [OpenDoc-0.1B](./docs/opendoc.md): Ultra-Lightweight Document Parsing System with 0.1B Parameters

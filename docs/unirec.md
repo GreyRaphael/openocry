@@ -1,6 +1,6 @@
 # UniRec-0.1B: Unified Text and Formula Recognition with 0.1B Parameters
 
-\[[Paper](https://arxiv.org/pdf/2512.21095)\] \[[ModelScope Model](https://www.modelscope.cn/models/topdktu/unirec-0.1b)\] \[[HuggingFace Model](https://huggingface.co/topdu/unirec-0.1b)\] \[[ModelScope Demo](https://www.modelscope.cn/studios/topdktu/OpenOCR-UniRec-Demo)\] \[[Hugging Face Demo](https://huggingface.co/spaces/topdu/OpenOCR-UniRec-Demo)\] \[[Local Demo](#local-demo)\] \[[UniRec40M Dataset](https://huggingface.co/datasets/topdu/UniRec40M)\]
+\[[Paper](https://arxiv.org/pdf/2512.21095)\] \[[Examples](https://github.com/GreyRaphael/openocry_examples)\] \[[ModelScope Model](https://www.modelscope.cn/models/topdktu/unirec-0.1b)\] \[[HuggingFace Model](https://huggingface.co/topdu/unirec-0.1b)\] \[[ModelScope Demo](https://www.modelscope.cn/studios/topdktu/OpenOCR-UniRec-Demo)\] \[[Hugging Face Demo](https://huggingface.co/spaces/topdu/OpenOCR-UniRec-Demo)\] \[[Local Demo](#local-demo)\] \[[UniRec40M Dataset](https://huggingface.co/datasets/topdu/UniRec40M)\]
 
 ## Introduction
 
@@ -14,13 +14,13 @@ It addresses structural variability and semantic entanglement by using a hierarc
 
 ```bash
 # Install from PyPI (recommended)
-pip install openocr-python==0.1.5
+pip install openocry==0.1.19
 
 # Or install from source
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 python build_package.py
-pip install ./build/dist/openocr_python-*.whl
+pip install ./build/dist/openocry-*.whl
 ```
 
 Recognize text, formulas, and tables using Vision-Language Model:
@@ -83,13 +83,13 @@ conda activate openocr
 conda install pytorch==2.2.0 torchvision==0.17.0 torchaudio==2.2.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 # or cpu version
 conda install pytorch torchvision torchaudio cpuonly -c pytorch
-git clone https://github.com/Topdu/OpenOCR.git
+git clone https://github.com/GreyRaphael/openocry.git
 ```
 
 ### Downloding the UniRec Model from ModelScope or Hugging Face
 
 ```shell
-cd OpenOCR
+cd openocry
 pip install -r requirements.txt
 # download model from modelscope
 modelscope download topdktu/unirec-0.1b --local_dir ./unirec-0.1b

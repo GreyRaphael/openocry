@@ -1,16 +1,16 @@
 <div align="center">
 
-<h1> OpenOCR: An Open-Source Toolkit for General-OCR Research and Applications </h1>
+<h1> openocry: 准确且高效的通用OCR系统 </h1>
 
-<h5 align="center"> 如果您觉得本项目有帮助，请为我们点亮Star🌟 </h5>
+<h5 align="center"> 基于 <a href="https://github.com/Topdu/OpenOCR">OpenOCR</a> 适配与封装的 Python 库。如果您觉得本项目有帮助，请为我们点亮Star🌟 </h5>
 
-<a href="https://github.com/Topdu/OpenOCR/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/Topdu/OpenOCR"></a>
+<a href="https://github.com/GreyRaphael/openocry/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/github/license/GreyRaphael/openocry"></a>
 <a href=""><img src="https://img.shields.io/badge/OS-Linux%2C%20Win%2C%20Mac-pink.svg"></a>
-<a href="https://github.com/Topdu/OpenOCR/graphs/contributors"><img src="https://img.shields.io/github/contributors/Topdu/OpenOCR?color=9ea"></a>
-<a href="https://pepy.tech/project/openocr"><img src="https://static.pepy.tech/personalized-badge/openocr?period=total&units=abbreviation&left_color=grey&right_color=blue&left_text=Clone%20下载量"></a>
-<a href="https://github.com/Topdu/OpenOCR/stargazers"><img src="https://img.shields.io/github/stars/Topdu/OpenOCR?color=ccf"></a>
-<a href="https://pypi.org/project/openocr-python/"><img alt="PyPI" src="https://img.shields.io/pypi/v/openocr-python"></a>
-<a href="https://pypi.org/project/openocr-python/"><img src="https://img.shields.io/pypi/dm/openocr-python?label=PyPI%20downloads"></a>
+<a href="https://github.com/GreyRaphael/openocry/graphs/contributors"><img src="https://img.shields.io/github/contributors/GreyRaphael/openocry?color=9ea"></a>
+<a href="https://pepy.tech/project/openocry"><img src="https://static.pepy.tech/personalized-badge/openocry?period=total&units=abbreviation&left_color=grey&right_color=blue&left_text=Clone%20下载量"></a>
+<a href="https://github.com/GreyRaphael/openocry/stargazers"><img src="https://img.shields.io/github/stars/GreyRaphael/openocry?color=ccf"></a>
+<a href="https://pypi.org/project/openocry/"><img alt="PyPI" src="https://img.shields.io/pypi/v/openocry"></a>
+<a href="https://pypi.org/project/openocry/"><img src="https://img.shields.io/pypi/dm/openocry?label=PyPI%20downloads"></a>
 
 简体中文 | [English](./README.md)
 
@@ -18,11 +18,11 @@
 
 ______________________________________________________________________
 
-OpenOCR 是由复旦大学[FVL实验室](https://fvl.fudan.edu.cn)[姜育刚教授](https://scholar.google.com/citations?user=f3_FP8AAAAAJ)、[陈智能教授](https://zhinchenfd.github.io)指导的OCR团队打造的开源平台，面向「文字检测与识别」、「公式与表格识别」、「文档解析和理解」等通用 OCR 任务。平台集成了统一的训练与评测基准、商用级 OCR 与文档解析系统，以及众多学术论文的核心代码复现。
+**openocry** (`openocry`) 是一个基于 [OpenOCR](https://github.com/Topdu/OpenOCR) 适配和重命名封装的 Python 库。OpenOCR 是由复旦大学[FVL实验室](https://fvl.fudan.edu.cn)[姜育刚教授](https://scholar.google.com/citations?user=f3_FP8AAAAAJ)、[陈智能教授](https://zhinchenfd.github.io)指导的OCR团队打造的开源平台，面向「文字检测与识别」、「公式与表格识别」、「文档解析和理解」等通用 OCR 任务。平台集成了统一的训练与评测基准、商用级 OCR 与文档解析系统，以及众多学术论文的核心代码复现。
 
-OpenOCR 致力于构建一个为学术研究与实际应用搭建桥梁的通用 OCR 开源生态，推动 OCR 技术在研究前沿和产业场景中的协同发展与广泛落地。欢迎研究者、开发者和企业使用和提建议。
+**openocry** 将 OpenOCR 核心能力整合成简洁的 Python 安装包（`pip install openocry==0.1.19`），保留统一的 `openocr` 命令行工具以及 Python 调用接口（`from openocr import OpenOCR`）。欢迎研究者、开发者和企业使用并提出建议。
 
-## 🚀 [快速开始](./QUICKSTART.md)
+## 🚀 [快速开始](./QUICKSTART.md) | 💡 [示例与使用教程](https://github.com/GreyRaphael/openocry_examples)
 
 ## 核心特性
 
@@ -87,8 +87,9 @@ OpenOCR 致力于构建一个为学术研究与实际应用搭建桥梁的通用
 
 ## 近期更新
 
-- **2026.02.12**: 🔥 发布 openocr-python 0.1.5，支持PDF文件作为输入；文档元素并行识别；增加Agent [skill](https://clawhub.ai/Topdu/openocr-skill)，[使用说明文档](./QUICKSTART.md)
-- **2026.02.06**: 🔥 发布 openocr-python 0.1.3，采用统一接口实现OpenOCR、文档解析OpenDoc-0.1B和UniRec-0.1B，[使用说明文档](./QUICKSTART.md)
+- **0.1.19**: 🔥 发布 `openocry` Python 库（`pip install openocry==0.1.19`），基于 OpenOCR 适配封装，提供统一的 `openocr` 命令行与 `from openocr import OpenOCR` 接口。详见[使用说明文档](./QUICKSTART.md)
+- **2026.02.12**: 🔥 发布 openocr-python（现已重命名为 openocry）0.1.5，支持PDF文件作为输入；文档元素并行识别；增加Agent [skill](https://clawhub.ai/Topdu/openocr-skill)，[使用说明文档](./QUICKSTART.md)
+- **2026.02.06**: 🔥 发布 openocr-python（现已重命名为 openocry）0.1.3，采用统一接口实现OpenOCR、文档解析OpenDoc-0.1B和UniRec-0.1B，[使用说明文档](./QUICKSTART.md)
 - **2026.01.13**: 🔥 开源 [CMER](./configs/rec/cmer/) 代码和 and [MER-17M](https://huggingface.co/datasets/topdu/MER-17M) 数据集.
 - **2026.01.07**: 🔥 开源 [UniRec40M](https://huggingface.co/datasets/topdu/UniRec40M) 数据集，包含4000万多层次文本、公式和文本公式混合内容识别数据.
 - **2025.12.25**: 🔥 新增超轻量级文档解析系统[OpenDoc-0.1B](./docs/opendoc.md)

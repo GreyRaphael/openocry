@@ -103,8 +103,8 @@ The optimal training hyperparameters for all models are usually not fixed. Howev
 - Python version >= 3.7
 
 ```shell
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 # Ubuntu 20.04 Cuda 11.8
 conda create -n openocr python==3.8
 conda activate openocr

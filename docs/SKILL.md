@@ -11,8 +11,8 @@ tags: [ocr, text-detection, text-recognition, document-parsing, vlm, unirec,
       layout-analysis, formula, table]
 tools: [computer, code_execution, file_operations]
 library:
-  name: OpenOCR
-  url: https://github.com/Topdu/OpenOCR
+  name: openocry (based on OpenOCR)
+  url: https://github.com/GreyRaphael/openocry
   stars: 1k+
 ---
 
@@ -605,31 +605,33 @@ launch_opendoc_demo(share=True, server_port=7862)
 
 ```bash
 # Basic installation (CPU, ONNX backend)
-pip install openocr-python
+pip install openocry
 
 # GPU-accelerated ONNX inference
-pip install openocr-python[onnx-gpu]
+pip install openocry[onnx-gpu]
 
 # PyTorch backend (for server mode)
-pip install openocr-python[pytorch]
+pip install openocry[pytorch]
 
 # Gradio demos
-pip install openocr-python[gradio]
+pip install openocry[gradio]
 
 # All optional dependencies
-pip install openocr-python[all]
+pip install openocry[all]
 
 # From source
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 python build_package.py
-pip install ./build/dist/openocr_python-*.whl
+pip install ./build/dist/openocry-*.whl
 ```
 
 ## Resources
 
-- [OpenOCR GitHub](https://github.com/Topdu/OpenOCR)
-- [PyPI Package](https://pypi.org/project/openocr-python/)
+- [openocry GitHub](https://github.com/GreyRaphael/openocry)
+- [openocry Examples & Tutorials](https://github.com/GreyRaphael/openocry_examples)
+- [PyPI Package](https://pypi.org/project/openocry/)
+- [Original OpenOCR GitHub](https://github.com/Topdu/OpenOCR)
 - [UniRec Paper](https://github.com/Topdu/OpenOCR#unirec)
 - [OpenDoc Documentation](https://github.com/Topdu/OpenOCR#opendoc)
-- [Model Zoo & Configs](https://github.com/Topdu/OpenOCR/tree/main/configs)
+- [Model Zoo & Configs](https://github.com/GreyRaphael/openocry/tree/main/configs)

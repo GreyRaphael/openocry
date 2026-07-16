@@ -1,11 +1,16 @@
-# OpenOCR: An Open-Source Toolkit for General-OCR Research and Applications
+# openocry: An Open-Source Toolkit for General-OCR Research and Applications
+
+> **Note:** **openocry** is a Python library adapted from [OpenOCR](https://github.com/Topdu/OpenOCR), packaged with a unified `openocr` command-line and Python API (`from openocr import OpenOCR`).
 
 ## For More Information
 
-Visit: https://github.com/Topdu/OpenOCR
+- **openocry Repository:** https://github.com/GreyRaphael/openocry
+- **openocry Examples & Tutorials:** https://github.com/GreyRaphael/openocry_examples
+- **Original OpenOCR Repository:** https://github.com/Topdu/OpenOCR
 
 ## Recent Updates
 
+- **0.1.19**: Release `openocry` Python package based on OpenOCR (`pip install openocry==0.1.19`).
 - **0.1.5**: Support the PDF file as an input; Parallel recognition of document elements; Add skill document
 - **0.1.3**: Use a unified interface for OCR, Document Parsing, and Unirec
 - **0.0.10**: Remove OpenCV version restrictions.
@@ -19,13 +24,13 @@ Visit: https://github.com/Topdu/OpenOCR
 
 ```bash
 # Install from PyPI (recommended)
-pip install openocr-python==0.1.5
+pip install openocry==0.1.19
 
 # Or install from source
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 python build_package.py
-pip install ./build/dist/openocr_python-*.whl
+pip install ./build/dist/openocry-*.whl
 ```
 
 ## Command Line Usage

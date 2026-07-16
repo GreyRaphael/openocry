@@ -67,8 +67,8 @@ Download all Configs, Models, and Logs from [Google Drive](https://drive.google.
 - Python version >= 3.7
 
 ```shell
-git clone -b develop https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 # A100 Ubuntu 20.04 Cuda 11.8
 conda create -n openocr python==3.8
 conda activate openocr

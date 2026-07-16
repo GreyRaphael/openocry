@@ -30,8 +30,8 @@ conda install pytorch torchvision torchaudio cpuonly -c pytorch
 #### Clone this repository:
 
 ```shell
-git clone https://github.com/Topdu/OpenOCR.git
-cd OpenOCR
+git clone https://github.com/GreyRaphael/openocry.git
+cd openocry
 pip install -r requirements.txt
 ```
 
