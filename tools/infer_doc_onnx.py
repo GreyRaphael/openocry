@@ -530,7 +530,7 @@ class OpenDocONNX:
 
         # Markdown忽略的标签
         self.markdown_ignore_labels = [
-            'number', 'footnote', 'header', 'footer', 'aside_text', 'footer_image', 'header_image', 'chart'
+            'number', 'footnote', 'header', 'footer', 'aside_text', 'footer_image', 'header_image'
         ]
         if keep_footnote and 'footnote' in self.markdown_ignore_labels:
             self.markdown_ignore_labels.remove('footnote')
