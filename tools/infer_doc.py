@@ -795,9 +795,11 @@ class OpenDoc(BasePipeline):
 
 def process_batch(process_batch_list: list, gpuId: int, output_path: str,
                   is_save_vis_img: bool, is_save_json: bool,
-                  is_save_markdown: bool, pretty: bool):
+                  is_save_markdown: bool, pretty: bool, keep_footnote: bool = False):
 
     opendoc_pipeline = OpenDoc(gpuId=gpuId)
+    if keep_footnote and 'footnote' in opendoc_pipeline.markdown_ignore_labels:
+        opendoc_pipeline.markdown_ignore_labels.remove('footnote')
     for img_path in process_batch_list:
         img_name = os.path.basename(img_path)[:-4]
         output = opendoc_pipeline.predict(img_path,
@@ -851,6 +853,10 @@ if __name__ == '__main__':
                         action='store_true',
                         help='Pretty print Markdown results')
 
+    parser.add_argument('--keep_footnote',
+                        action='store_true',
+                        help='Keep footnote in Markdown results')
+
     args = parser.parse_args()
 
     # Parse GPU IDs
@@ -874,7 +880,7 @@ if __name__ == '__main__':
     if len(gpus) == 1:
         process_batch(img_list, gpus[0], args.output_path,
                       args.is_save_vis_img, args.is_save_json,
-                      args.is_save_markdown, args.pretty)
+                      args.is_save_markdown, args.pretty, args.keep_footnote)
     else:
         num_gpus = len(gpus)
         img_list_batch = [img_list[i::num_gpus] for i in range(num_gpus)]
@@ -886,7 +892,7 @@ if __name__ == '__main__':
                 Process(target=process_batch,
                         args=(img_list_batch[idx], gpuId, args.output_path,
                               args.is_save_vis_img, args.is_save_json,
-                              args.is_save_markdown, args.pretty)))
+                              args.is_save_markdown, args.pretty, args.keep_footnote)))
 
         for process in process_list:
             process.start()

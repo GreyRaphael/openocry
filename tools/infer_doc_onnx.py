@@ -487,6 +487,7 @@ class OpenDocONNX:
         max_parallel_blocks: int = 4,
         intra_op_num_threads: Optional[int] = None,
         inter_op_num_threads: Optional[int] = None,
+        keep_footnote: bool = False,
     ):
         """
         初始化OpenDoc ONNX Pipeline
@@ -531,6 +532,8 @@ class OpenDocONNX:
         self.markdown_ignore_labels = [
             'number', 'footnote', 'header', 'footer', 'aside_text', 'footer_image', 'header_image', 'chart'
         ]
+        if keep_footnote and 'footnote' in self.markdown_ignore_labels:
+            self.markdown_ignore_labels.remove('footnote')
 
         # 为所有25种标签类型定义不同的颜色 (BGR格式)
         self.colors = {
@@ -1404,6 +1407,9 @@ def main():
     parser.add_argument('--save_markdown',
                         action='store_true',
                         help='Save Markdown results')
+    parser.add_argument('--keep_footnote',
+                        action='store_true',
+                        help='Keep footnote in Markdown results')
 
     args = parser.parse_args()
 
@@ -1429,6 +1435,7 @@ def main():
         use_chart_recognition=args.use_chart_recognition,
         auto_download=not args.no_auto_download,
         max_parallel_blocks=args.max_parallel_blocks,
+        keep_footnote=args.keep_footnote,
     )
 
     # 获取图像列表

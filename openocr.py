@@ -68,6 +68,7 @@ class OpenOCR:
         use_chart_recognition: bool = True,
         auto_download: bool = True,
         max_parallel_blocks: int = 4,
+        keep_footnote: bool = False,
     ):
         """
         Initialize OpenOCR unified interface.
@@ -159,6 +160,7 @@ class OpenOCR:
                 use_chart_recognition=use_chart_recognition,
                 auto_download=auto_download,
                 max_parallel_blocks=max_parallel_blocks,
+                keep_footnote=keep_footnote,
             )
 
         logger.info(f"✅ OpenOCR initialized successfully for task: {self.task}")
